@@ -84,3 +84,16 @@
 .marquee-track { display: flex; width: max-content; animation: marquee 32s linear infinite; }
 @keyframes marquee { to { transform: translateX(-50%); } }
 @media (prefers-reduced-motion: reduce) { .s3d-tilt, .s3d-up, .s3d-down, .s3d-spin { transform: none; } .marquee-track { animation: none; } }
+.flip-word { display: inline-block; transform-origin: 50% 100%; animation: flipIn 0.9s cubic-bezier(.2,.8,.2,1) both; }
+@keyframes flipIn { from { opacity: 0; transform: perspective(600px) rotateX(-95deg) translateY(20px); } to { opacity: 1; transform: none; } }
+.scroll-bar { position: fixed; top: 0; left: 0; height: 3px; z-index: 60; width: calc(var(--sp, 0) * 100%); background: linear-gradient(90deg, #00B4D8, #10B981); }
+.orbit-chip { position: absolute; z-index: 5; animation: orbitFloat 7s ease-in-out infinite; pointer-events: none; }
+@keyframes orbitFloat { 0%, 100% { transform: perspective(700px) translate3d(0, 0, 40px) rotateY(-14deg); } 50% { transform: perspective(700px) translate3d(0, -16px, 90px) rotateY(10deg); } }
+.flip-card { perspective: 1000px; }
+.flip-inner { position: relative; height: 100%; transform-style: preserve-3d; transition: transform 0.7s cubic-bezier(.2,.8,.2,1); }
+.flip-card:hover .flip-inner, .flip-card:focus-within .flip-inner, .flip-card.flipped .flip-inner { transform: rotateY(180deg); }
+.flip-face { position: absolute; inset: 0; backface-visibility: hidden; border-radius: 1rem; }
+.flip-back { transform: rotateY(180deg); }
+.plan-pop { opacity: 0; transform: perspective(1000px) rotateY(-28deg) translateZ(-80px); transition: opacity .8s ease, transform .9s cubic-bezier(.2,.8,.2,1); }
+.plan-pop.in { opacity: 1; transform: none; }
+@media (prefers-reduced-motion: reduce) { .flip-word, .orbit-chip { animation: none; } .plan-pop { opacity: 1; transform: none; } }

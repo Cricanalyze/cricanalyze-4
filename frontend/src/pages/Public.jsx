@@ -27,6 +27,11 @@ const FEATURES = [
   [Users, "Academy workspace", "Invite coaches and players, assign coaches, track attendance and share reports only with player consent."],
 ];
 
+const WHO = [["Players", "Specific, evidence-linked feedback and a plan for your next sessions.", ["Technique score /100", "Weight transfer & head position", "Drills + weekly plan", "Join your academy with a code"]],
+  ["Parents", "Support young players with guardian consent and privacy built in.", ["Guardian consent for under-18s", "Private video storage", "Reports emailed to you", "Delete data anytime"]],
+  ["Coaches", "Review your players' shared reports and add your own feedback.", ["Verified coach accounts", "Full access to added players", "Leaderboards with nicknames", "Attendance & feedback"]],
+  ["Academies", "Manage batches, coaches and progress in one private workspace.", ["Unique academy join code", "Approve join requests", "Referral commission", "Coach & Academy plans"]]];
+
 export const Home = () => {
   const [posts, setPosts] = useState([]);
   useEffect(() => { api.get("/blog/posts", { params: { limit: 3 } }).then(({ data }) => setPosts(data.posts)).catch(() => {}); }, []);
@@ -37,7 +42,7 @@ export const Home = () => {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 pt-16 pb-20 md:pt-24 grid lg:grid-cols-12 gap-12 items-center w-full">
           <div className="lg:col-span-6 fade-up">
             <div className="eyebrow mb-5">AI cricket video analysis</div>
-            <h1 className="text-4xl sm:text-5xl lg:text-6xl font-extrabold leading-[1.05]">See your technique <span className="text-[#10B981]">frame by frame.</span></h1>
+            <h1 className="text-4xl sm:text-5xl lg:text-6xl font-extrabold leading-[1.05]" data-testid="hero-title"><span className="flip-word " style={{ animationDelay: "0.00s" }}>See</span> <span className="flip-word " style={{ animationDelay: "0.08s" }}>your</span> <span className="flip-word " style={{ animationDelay: "0.16s" }}>technique</span> <span className="flip-word text-[#10B981]" style={{ animationDelay: "0.24s" }}>frame</span> <span className="flip-word text-[#10B981]" style={{ animationDelay: "0.32s" }}>by</span> <span className="flip-word text-[#10B981]" style={{ animationDelay: "0.40s" }}>frame.</span></h1>
             <p className="text-slate-300 mt-6 text-base sm:text-lg max-w-xl leading-relaxed">Upload a short batting or bowling clip. CricAnalyze reviews key frames, explains what it can see, flags what it can't, and turns it into drills you can practise this week.</p>
             <div className="flex flex-wrap gap-3 mt-8">
               <Button size="lg" asChild className="bg-[#10B981] hover:bg-[#059669] text-[#0B132B] rounded-full px-7" data-testid="hero-cta-btn"><Link to="/app/upload">Analyse a video <ArrowRight className="ml-1" size={18} /></Link></Button>
@@ -56,7 +61,9 @@ export const Home = () => {
         <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-5 s3d-tilt" data-s3d>{FEATURES.map(([I, t, d], i) => <Tilt key={t} className="glass rounded-xl p-5 reveal-3d hover:border-[#00B4D8]/40" style={{ transitionDelay: `${i * 60}ms` }} data-testid={`feature-card-${i}`}><I className="text-[#00B4D8] mb-4 depth-pop" /><h3 className="font-semibold text-lg mb-2 depth-pop">{t}</h3><p className="text-sm text-slate-400 leading-relaxed">{d}</p></Tilt>)}</div>
       </Section>
       <Section className="!pt-0"><H2 eyebrow="Who it's for" title="One platform, four kinds of cricketers" />
-        <div className="grid md:grid-cols-4 gap-px bg-white/5 rounded-2xl overflow-hidden">{[["Players", "Get specific, evidence-linked feedback and a plan for your next sessions."], ["Parents", "Support young players with guardian consent and privacy controls built in."], ["Coaches", "Review assigned players' shared reports and add your own feedback."], ["Academies", "Manage batches, coaches and progress in an isolated workspace."]].map(([t, d]) => <div key={t} className="bg-[#0B132B]/85 backdrop-blur-xl p-7 reveal-3d"><h3 className="font-display font-bold text-xl mb-2">{t}</h3><p className="text-sm text-slate-400">{d}</p></div>)}</div>
+        <div className="grid sm:grid-cols-2 md:grid-cols-4 gap-4 s3d-tilt" data-s3d>{WHO.map(([t, d, back], i) => <div key={t} tabIndex={0} onClick={(e) => e.currentTarget.classList.toggle("flipped")} className="flip-card h-56 reveal-3d cursor-pointer" style={{ transitionDelay: `${i * 80}ms` }} data-testid={`who-card-${i}`}>
+          <div className="flip-inner"><div className="flip-face glass p-7 flex flex-col justify-between"><h3 className="font-display font-bold text-2xl">{t}</h3><p className="text-sm text-slate-400">{d}</p><span className="text-[11px] text-[#00B4D8]">Hover or tap to flip ↻</span></div>
+            <div className="flip-face flip-back p-7 bg-gradient-to-br from-[#10B981]/25 to-[#00B4D8]/15 border border-[#10B981]/40 flex flex-col justify-center"><ul className="space-y-2 text-sm">{back.map((x) => <li key={x} className="flex gap-2"><CheckCircle2 size={15} className="text-[#10B981] shrink-0 mt-0.5" />{x}</li>)}</ul></div></div></div>)}</div>
       </Section>
       <FilmingGuide />
       <AcademySection />
@@ -93,7 +100,7 @@ export const PlanGrid = ({ onSelect }) => {
         className={`px-4 py-2 rounded-full text-sm border transition-colors ${prod === v ? "border-[#10B981] bg-[#10B981]/10 text-white" : "border-white/10 text-slate-300 hover:border-white/30"}`}>{l}</button>)}</div>
       <div className="grid md:grid-cols-3 gap-5">
       {shown.map((p, i) => (
-        <Tilt key={p.id} max={6} className={`rounded-2xl p-7 border backdrop-blur-xl ${i === 1 ? "border-[#10B981]/50 bg-[#10B981]/10" : "border-white/10 bg-[#0B132B]/80"}`} data-testid={`plan-card-${p.slug}`}>
+        <Tilt key={p.id} max={6} style={{ transitionDelay: `${i * 120}ms` }} className={`plan-pop rounded-2xl p-7 border backdrop-blur-xl ${i === 1 ? "border-[#10B981]/50 bg-[#10B981]/10" : "border-white/10 bg-[#0B132B]/80"}`} data-testid={`plan-card-${p.slug}`}>
           <div className="eyebrow">{p.tier || p.billing}</div>
           <h3 className="text-2xl font-bold mt-2">{p.name}</h3>
           <div className="text-4xl font-display font-extrabold mt-4">{inr(p.price_inr)}<span className="text-sm text-slate-400 font-normal"> / {p.period_days} days</span></div>

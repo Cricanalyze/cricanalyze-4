@@ -34,6 +34,8 @@ export const HeroBatter = () => {
         <div><div className="text-slate-400">Head vs front foot</div><div className="font-mono text-base font-semibold text-amber-300" ref={set("head")}>—</div></div>
       </div>
       <div className="absolute top-4 right-4 text-[11px] text-slate-400 flex items-center gap-1 pointer-events-none"><Move3d size={14} />Drag to rotate</div>
+      <div className="orbit-chip right-6 top-24 glass rounded-full px-3 py-1.5 text-[11px] font-mono text-[#5fd7ef] hidden sm:block">17 joints tracked</div>
+      <div className="orbit-chip right-10 top-[52%] glass rounded-full px-3 py-1.5 text-[11px] font-mono text-amber-300 hidden sm:block" style={{ animationDelay: "-3s" }}>ball tracked ●</div>
 
     </div>
   );
