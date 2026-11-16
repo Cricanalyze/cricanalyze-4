@@ -82,11 +82,32 @@ const FilmingChecklist = ({ type }) => (
     <ul className="text-sm text-slate-300 space-y-1.5">{CHECKS[type].map((c) => <li key={c} className="flex gap-2"><CheckCircle2 size={16} className="text-[#10B981] shrink-0 mt-0.5" />{c}</li>)}</ul>
     <p className="text-xs text-slate-500 mt-3">30–60 fps at 720p or higher gives the most measurements.</p></Card>);
 
+const DEMOS = { batting: ["/demo/batting-front-on.mp4", "Film batting front-on, from behind the bowler"], bowling: ["/demo/bowling-side-on.mp4", "Film bowling side-on, 10–15 m from the crease"] };
+
+const DemoVideo = ({ type, watched, onWatched }) => {
+  const [pct, setPct] = useState(0);
+  const maxT = useRef(0);
+  const onTime = (e) => {
+    const v = e.target;
+    if (v.currentTime > maxT.current + 1) v.currentTime = maxT.current;
+    else maxT.current = Math.max(maxT.current, v.currentTime);
+    if (v.duration) setPct(Math.round((maxT.current / v.duration) * 100));
+  };
+  return <Card data-testid="demo-video-card"><div className="flex items-center justify-between mb-2"><h3 className="font-semibold capitalize">{type} demo</h3>
+      {watched ? <Badge tone="teal">Watched</Badge> : <span className="text-xs text-slate-400" data-testid="demo-progress">{pct}% watched</span>}</div>
+    <p className="text-sm text-slate-400 mb-3">{DEMOS[type][1]}. {watched ? "You can upload your video below." : "Watch the full demo to unlock the upload."}</p>
+    <video key={type} src={DEMOS[type][0]} controls autoPlay muted playsInline className="w-full rounded-lg bg-black aspect-video" onTimeUpdate={watched ? undefined : onTime} onEnded={onWatched} data-testid="demo-video" />
+    {!watched && <Progress value={pct} className="mt-3" />}</Card>;
+};
+
 export const Upload = () => {
   const { user, ent } = useAuth();
   const nav = useNavigate();
   const [status, setStatus] = useState(null);
-  const [type, setType] = useState("batting");
+  const [type, setType] = useState(null);
+  const [watched, setWatched] = useState(() => JSON.parse(localStorage.getItem("demo_watched") || "{}"));
+  const markWatched = () => { const w = { ...watched, [type]: true }; setWatched(w); localStorage.setItem("demo_watched", JSON.stringify(w)); };
+  const pickType = (t) => { if (t !== type) setItems([]); setType(t); };
   const [items, setItems] = useState([]);
   const [consent, setConsent] = useState(false);
   const [notes, setNotes] = useState("");
@@ -133,10 +154,13 @@ export const Upload = () => {
       <PageHeader eyebrow="New analysis" title="Upload a cricket video" desc={`Up to ${staff ? 3 : maxVideos} video(s) of any length, ${ent?.max_file_mb || 100} MB max. MP4, MOV or WEBM. For long clips we find the main shot or delivery and analyse it frame by frame.`} />
       <ConsentGate status={status} reload={loadStatus} />
       {!staff && allowed.length === 0 ? <Empty title="No active plan" desc="Choose a plan to start analysing videos." action={<Button asChild><Link to="/app/billing">View plans</Link></Button>} testid="upload-no-plan" /> :
-      <div className="grid lg:grid-cols-5 gap-6">
-        <div className="lg:col-span-3 space-y-4">
-          <div className="flex gap-2">{["batting", "bowling"].map((t) => <button key={t} disabled={!allowed.includes(t)} title={allowed.includes(t) ? "" : `${t} analysis isn't included in your plan`} onClick={() => setType(t)} data-testid={`type-${t}-btn`}
-            className={`flex-1 py-3 rounded-lg border capitalize transition-colors disabled:opacity-40 ${type === t ? "border-[#10B981] bg-[#10B981]/10" : "border-white/10 hover:border-white/30"}`}>{t}</button>)}</div>
+      <div className="space-y-6">
+        <div data-testid="type-step"><p className="text-sm text-slate-400 mb-2">Step 1 · What are you analysing?</p>
+          <div className="flex gap-2">{["batting", "bowling"].map((t) => <button key={t} disabled={!allowed.includes(t)} title={allowed.includes(t) ? "" : `${t} analysis isn't included in your plan`} onClick={() => pickType(t)} data-testid={`type-${t}-btn`}
+            className={`flex-1 py-4 rounded-lg border capitalize font-medium transition-colors disabled:opacity-40 ${type === t ? "border-[#10B981] bg-[#10B981]/10" : "border-white/10 hover:border-white/30"}`}>{t}</button>)}</div></div>
+        {type && <div className="max-w-3xl"><p className="text-sm text-slate-400 mb-2">Step 2 · Watch how to film it</p><DemoVideo type={type} watched={!!watched[type]} onWatched={markWatched} /></div>}
+        {type && watched[type] && <div className="grid lg:grid-cols-5 gap-6" data-testid="upload-step">
+        <div className="lg:col-span-3 space-y-4"><p className="text-sm text-slate-400">Step 3 · Upload your video</p>
           <label onDragOver={(e) => { e.preventDefault(); setDrag(true); }} onDragLeave={() => setDrag(false)} onDrop={(e) => { e.preventDefault(); setDrag(false); add(e.dataTransfer.files); }}
             className={`block border-2 border-dashed rounded-xl p-10 text-center cursor-pointer transition-colors ${drag ? "border-[#10B981] bg-[#10B981]/5" : "border-white/15 hover:border-[#00B4D8]/50"}`} data-testid="dropzone">
             <UploadCloud className="mx-auto text-[#00B4D8] mb-3" size={36} /><p className="font-medium">Drag & drop video{maxVideos > 1 ? "s" : ""} here or click to browse</p>
@@ -166,7 +190,7 @@ export const Upload = () => {
             {busy ? "Uploading…" : staff ? "Start analysis (staff, no credit)" : "Start analysis · uses 1 credit"}</Button>
           <p className="text-xs text-slate-500">Credits are refunded automatically if the analysis fails.</p>
         </div>
-      </div>}
+      </div>}</div>}
     </div>
   );
 };

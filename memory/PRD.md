@@ -90,3 +90,8 @@ User request: always show Overall Technique Score XX/100 when >=1 valid measurem
 - Cloned public repo, installed deps, configured backend/.env (APP_SECRET, APP_URL, DEV_EMAIL_OUTBOX=true, EMERGENT_LLM_KEY for storage). Smoke tests pass.
 - Missing keys: SMTP_*, RAZORPAY_KEY_ID/SECRET/WEBHOOK_SECRET, ANTHROPIC_API_KEY, ULTRALYTICS_API_KEY.
 - Applied user config: real SMTP (Hostinger), Razorpay test, Anthropic, Ultralytics YOLO26 — all verified live. DEV_EMAIL_OUTBOX=false. RAZORPAY_WEBHOOK_SECRET not set.
+
+## 2026-06 Upload demo gate
+- Upload flow: Step 1 pick Batting/Bowling -> Step 2 must watch full demo (/demo/batting-front-on.mp4, /demo/bowling-side-on.mp4; no skipping ahead; remembered per type in localStorage `demo_watched`) -> Step 3 upload.
+- Demo clips are generated placeholders (scripts/make_demo_videos.py); user will replace with real clips in frontend/public/demo/.
+- Backlog P1: verify bowling weight transfer, leaderboard with real scores, scheduled report emails.
