@@ -95,3 +95,4 @@ User request: always show Overall Technique Score XX/100 when >=1 valid measurem
 - Upload flow: Step 1 pick Batting/Bowling -> Step 2 must watch full demo (/demo/batting-front-on.mp4, /demo/bowling-side-on.mp4; no skipping ahead; remembered per type in localStorage `demo_watched`) -> Step 3 upload.
 - Demo clips are generated placeholders (scripts/make_demo_videos.py); user will replace with real clips in frontend/public/demo/.
 - Backlog P1: verify bowling weight transfer, leaderboard with real scores, scheduled report emails.
+- Demo clips replaced with realistic AI 3D clips (fal.ai Kling v3 Pro, 4s, no text/audio, ~400KB each) via scripts/gen_ai_demo_videos.py.
