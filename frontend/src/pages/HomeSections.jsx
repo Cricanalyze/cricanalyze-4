@@ -117,3 +117,27 @@ export const Marquee3D = () => (
     <div className="marquee-3d"><div className="marquee-track gap-3">{[...CHIPS, ...CHIPS].map((c, i) => <span key={i} className="glass rounded-full px-5 py-2 text-sm font-mono whitespace-nowrap text-slate-200 mr-3"><span className="text-[#10B981] mr-2">●</span>{c}</span>)}</div></div>
   </div>
 );
+
+const LAYERS = [
+  ["Your video", "Original clip, frame-accurate", "from-slate-700/60 to-slate-900/60", 0],
+  ["Body tracking", "17 joints on every key frame", "from-[#00B4D8]/40 to-[#0B132B]/70", 1],
+  ["Measurements", "Knee, head, weight transfer, landings", "from-[#10B981]/40 to-[#0B132B]/70", 2],
+  ["Your report", "Score /100 · drills · weekly plan", "from-amber-500/40 to-[#0B132B]/70", 3],
+];
+
+export const ExplodedReport = () => (
+  <section data-s3d="pin" className="relative h-[240vh]" data-testid="exploded-report">
+    <div className="sticky top-16 h-[calc(100vh-4rem)] flex items-center overflow-hidden">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 grid lg:grid-cols-2 gap-10 items-center w-full">
+        <div className="stack-stage h-[340px] sm:h-[420px] relative order-2 lg:order-1">
+          <div className="stack absolute left-1/2 top-1/2 w-[240px] sm:w-[300px] h-[300px] sm:h-[360px] -ml-[120px] sm:-ml-[150px] -mt-[150px] sm:-mt-[180px]">
+            {LAYERS.map(([t, d, g, z]) => <div key={t} className={`layer rounded-3xl border border-white/15 bg-gradient-to-br ${g} backdrop-blur-md p-6 flex flex-col justify-end shadow-2xl`} style={{ "--z": z }}>
+              <div className="font-mono text-[10px] text-slate-300 mb-1">LAYER {z + 1}</div><div className="font-display font-bold text-xl">{t}</div><div className="text-xs text-slate-300">{d}</div></div>)}
+          </div>
+        </div>
+        <div className="order-1 lg:order-2"><div className="eyebrow mb-3">Inside every report</div><h2 className="text-3xl sm:text-5xl font-bold leading-tight">Four layers of analysis,<br /><span className="text-[#00B4D8]">one clear answer.</span></h2>
+          <p className="text-slate-400 mt-4 max-w-md">Scroll to pull the report apart: your clip, the tracked skeleton, the measured numbers and the coaching you actually use.</p></div>
+      </div>
+    </div>
+  </section>
+);

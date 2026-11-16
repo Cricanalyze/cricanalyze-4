@@ -15,7 +15,7 @@ export const PublicLayout = () => {
   useReveal();
   useScroll3D();
   return (
-    <div className="min-h-screen flex flex-col relative isolate">
+    <div className="min-h-screen flex flex-col relative isolate overflow-x-clip">
       <div className="scroll-bar" aria-hidden="true" data-testid="scroll-progress" />
       <header className="sticky top-0 z-40 backdrop-blur-xl bg-[#070D1E]/80 border-b border-white/5">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">

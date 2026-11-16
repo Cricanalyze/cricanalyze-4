@@ -9,7 +9,7 @@ import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/
 import { api, errMsg, inr, SITE } from "@/lib/api";
 import { Seo, Card, Badge } from "@/components/Common";
 import { Tilt, HeroBatter } from "@/components/Fx3D";
-import { SampleReport, Measures, FilmingGuide, AcademySection, Journey, Marquee3D } from "@/pages/HomeSections";
+import { SampleReport, Measures, FilmingGuide, AcademySection, Journey, Marquee3D, ExplodedReport } from "@/pages/HomeSections";
 import { useAuth } from "@/context/AuthContext";
 import { PostCard } from "@/pages/Blog";
 
@@ -38,14 +38,17 @@ export const Home = () => {
   return (
     <>
       <Seo title="CricAnalyze — AI Cricket Batting & Bowling Video Analysis" path="/" description="Upload a batting or bowling video and get an AI-assisted technique report with evidence frames, drills and a practice plan." jsonLd={[ORG, WEBSITE]} />
-      <section className="relative overflow-hidden grid-bg" data-testid="hero-3d">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 pt-16 pb-20 md:pt-24 grid lg:grid-cols-12 gap-12 items-center w-full">
+      <section className="relative overflow-hidden" data-testid="hero-3d">
+        <div className="floor-grid" aria-hidden="true" />
+        <div className="glow-orb w-96 h-96 bg-[#00B4D8] -top-20 right-10" aria-hidden="true" />
+        <div className="glow-orb w-80 h-80 bg-[#10B981] bottom-0 left-0" style={{ animationDelay: "-6s" }} aria-hidden="true" />
+        <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 pt-16 pb-20 md:pt-24 grid lg:grid-cols-12 gap-12 items-center w-full">
           <div className="lg:col-span-6 fade-up">
             <div className="eyebrow mb-5">AI cricket video analysis</div>
             <h1 className="text-4xl sm:text-5xl lg:text-6xl font-extrabold leading-[1.05]" data-testid="hero-title"><span className="flip-word " style={{ animationDelay: "0.00s" }}>See</span> <span className="flip-word " style={{ animationDelay: "0.08s" }}>your</span> <span className="flip-word " style={{ animationDelay: "0.16s" }}>technique</span> <span className="flip-word text-[#10B981]" style={{ animationDelay: "0.24s" }}>frame</span> <span className="flip-word text-[#10B981]" style={{ animationDelay: "0.32s" }}>by</span> <span className="flip-word text-[#10B981]" style={{ animationDelay: "0.40s" }}>frame.</span></h1>
             <p className="text-slate-300 mt-6 text-base sm:text-lg max-w-xl leading-relaxed">Upload a short batting or bowling clip. CricAnalyze reviews key frames, explains what it can see, flags what it can't, and turns it into drills you can practise this week.</p>
             <div className="flex flex-wrap gap-3 mt-8">
-              <Button size="lg" asChild className="bg-[#10B981] hover:bg-[#059669] text-[#0B132B] rounded-full px-7" data-testid="hero-cta-btn"><Link to="/app/upload">Analyse a video <ArrowRight className="ml-1" size={18} /></Link></Button>
+              <Button size="lg" asChild className="btn-3d bg-[#10B981] hover:bg-[#059669] text-[#0B132B] rounded-full px-7" data-testid="hero-cta-btn"><Link to="/app/upload">Analyse a video <ArrowRight className="ml-1" size={18} /></Link></Button>
               <Button size="lg" variant="outline" asChild className="rounded-full px-7 border-white/20 bg-transparent" data-testid="hero-how-btn"><Link to="/how-it-works">How it works</Link></Button>
             </div>
             <p className="text-xs text-slate-500 mt-5">For players, parents, coaches and academies. Guardian consent required for players under 18.</p>
@@ -55,6 +58,7 @@ export const Home = () => {
       </section>
       <Marquee3D />
       <Journey />
+      <ExplodedReport />
       <SampleReport />
       <Measures />
       <Section><H2 eyebrow="What it analyses" title="Batting and bowling, explained clearly" desc="Built around what a single phone camera can reliably show." />
