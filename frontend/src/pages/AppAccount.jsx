@@ -13,6 +13,7 @@ import { useAuth } from "@/context/AuthContext";
 import { PageHeader, Empty, Card, Badge, statusTone, Seo } from "@/components/Common";
 import { PlanGrid } from "@/pages/Public";
 import { Otp } from "@/pages/Auth";
+import { JoinAcademy, AcademyCodeCard, JoinRequests, Leaderboard, NicknameEdit } from "@/components/AcademyExtras";
 
 export const Academy = () => {
   const { user } = useAuth();
@@ -32,11 +33,12 @@ export const Academy = () => {
   return (
     <div><Seo title="Academy" path="/app/academy" noindex />
       <PageHeader eyebrow="Academy" title="Academy workspace" desc="Each academy's data is isolated. Coaches only see assigned players who have chosen to share reports." />
+      {["player", "parent"].includes(user.role) && <JoinAcademy onJoined={load} />}
       {mine.invites.map((i) => <Card key={i.id} className="mb-4 flex justify-between items-center" data-testid={`invite-${i.id}`}><span className="text-sm">Invitation to <b>{i.academy_name}</b> as {i.role}</span>
         <Button size="sm" onClick={async () => { try { await api.post("/academy-invites/accept", { invite_id: i.id }); load(); toast.success("Joined."); } catch (e) { toast.error(errMsg(e)); } }} data-testid={`accept-invite-${i.id}`}>Accept</Button></Card>)}
       {mine.memberships.length > 0 && <div className="flex flex-wrap gap-2 mb-6">{mine.memberships.map((m) => <Button key={m.academy_id} size="sm" variant={sel === m.academy_id ? "default" : "secondary"} onClick={() => setSel(m.academy_id)} data-testid={`academy-tab-${m.academy_id}`}>{m.academy?.name} · {m.role}</Button>)}</div>}
       {sel && <AcademyView aid={sel} membership={mine.memberships.find((m) => m.academy_id === sel)} reload={load} />}
-      {mine.memberships.length === 0 && !canCreate && <Empty icon={Building2} title="You're not in an academy" desc="Ask your academy to invite you by email. Invitations appear here." testid="academy-empty" />}
+      {mine.memberships.length === 0 && !canCreate && <Empty icon={Building2} title="You're not in an academy" desc="Enter your academy code above to request to join, or ask your academy to invite you by email." testid="academy-empty" />}
       {canCreate && <Card className="mt-8 max-w-xl"><h3 className="font-semibold mb-3">Create an academy</h3><form onSubmit={create} className="space-y-3" data-testid="create-academy-form">
         <Input placeholder="Academy name" required minLength={2} value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} data-testid="academy-name-input" />
         <Input placeholder="City" value={form.city} onChange={(e) => setForm({ ...form, city: e.target.value })} data-testid="academy-city-input" />
@@ -59,8 +61,8 @@ const AcademyView = ({ aid, membership, reload }) => {
   const load = useCallback(() => { if (role !== "player") api.get(`/academies/${aid}/members`).then(({ data }) => setD(data)).catch(() => setD(null)); }, [aid, role]);
   useEffect(() => { load(); }, [load]);
   useEffect(() => { if (role !== "player") api.get(`/academies/${aid}/attendance`, { params: { date } }).then(({ data }) => setAtt(Object.fromEntries(data.map((x) => [x.player_id, x.status])))).catch(() => {}); }, [aid, date, role]);
-  if (role === "player") return <Card data-testid="player-consent-card"><h3 className="font-semibold">{membership.academy?.name}</h3><p className="text-sm text-slate-400 mt-1 mb-4">Choose whether your academy admins and assigned coaches can view your analysis reports and videos.</p>
-    <label className="flex items-center gap-3"><Switch checked={!!membership.share_reports} onCheckedChange={async (v) => { try { await api.patch(`/academies/${aid}/consent`, { share_reports: v }); reload(); toast.success(v ? "Sharing enabled." : "Sharing turned off."); } catch (e) { toast.error(e?.response?.data?.detail === "guardian_consent_required" ? "Guardian consent is required first (see New analysis)." : errMsg(e)); } }} data-testid="share-reports-switch" />Share my reports with this academy</label></Card>;
+  if (role === "player") return <div className="space-y-6"><Card data-testid="player-consent-card"><h3 className="font-semibold">{membership.academy?.name}</h3><p className="text-sm text-slate-400 mt-1 mb-4">Choose whether your academy admins and assigned coaches can view your analysis reports and videos.</p>
+    <label className="flex items-center gap-3"><Switch checked={!!membership.share_reports} onCheckedChange={async (v) => { try { await api.patch(`/academies/${aid}/consent`, { share_reports: v }); reload(); toast.success(v ? "Sharing enabled." : "Sharing turned off."); } catch (e) { toast.error(e?.response?.data?.detail === "guardian_consent_required" ? "Guardian consent is required first (see New analysis)." : errMsg(e)); } }} data-testid="share-reports-switch" />Share my reports with this academy</label></Card><Leaderboard aid={aid} /></div>;
   if (!d) return <p className="text-slate-400">Loading…</p>;
   const players = d.members.filter((m) => m.role === "player");
   const coaches = d.members.filter((m) => m.role !== "player");
@@ -69,6 +71,9 @@ const AcademyView = ({ aid, membership, reload }) => {
   return (
     <div className="space-y-6">
       <div className="flex justify-end"><Button size="sm" variant="secondary" onClick={() => download(`/academies/${aid}/export.csv`, "academy-players.csv")} data-testid="academy-export-btn"><Download size={14} className="mr-1" />Export CSV</Button></div>
+      {admin && <AcademyCodeCard aid={aid} />}
+      {admin && <JoinRequests aid={aid} onChange={load} />}
+      <Leaderboard aid={aid} />
       {admin && <div className="grid md:grid-cols-2 gap-5">
         <Card><h3 className="font-semibold mb-3">Invite by email</h3><div className="flex gap-2"><Input type="email" placeholder="email@example.com" value={inv.email} onChange={(e) => setInv({ ...inv, email: e.target.value })} data-testid="invite-email-input" />
           <Select value={inv.role} onValueChange={(v) => setInv({ ...inv, role: v })}><SelectTrigger className="w-28" data-testid="invite-role-select"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="player">Player</SelectItem><SelectItem value="coach">Coach</SelectItem></SelectContent></Select>
@@ -82,7 +87,7 @@ const AcademyView = ({ aid, membership, reload }) => {
           <div className="flex flex-wrap gap-1 mt-2">{d.groups.map((g) => <Badge key={g.id}>{g.name} ({g.player_ids.length})</Badge>)}</div></Card></div>}
       <Card className="overflow-x-auto"><div className="flex justify-between items-center mb-3"><h3 className="font-semibold">Players ({players.length})</h3><div className="flex items-center gap-2 text-xs">Attendance date <Input type="date" value={date} onChange={(e) => setDate(e.target.value)} className="w-40 h-8" data-testid="attendance-date" /></div></div>
         <table className="w-full text-sm min-w-[640px]"><thead><tr className="text-left text-slate-400"><th className="py-2">Name</th><th>Role</th><th>Sharing</th><th>Analyses</th><th>Coaches</th><th>Attendance</th><th /></tr></thead>
-          <tbody>{players.map((m) => <tr key={m.user_id} className="border-t border-white/5" data-testid={`player-row-${m.user_id}`}><td className="py-2">{m.full_name}</td><td>{m.playing_role || "—"}</td>
+          <tbody>{players.map((m) => <tr key={m.user_id} className="border-t border-white/5" data-testid={`player-row-${m.user_id}`}><td className="py-2">{m.full_name}<NicknameEdit aid={aid} m={m} onSaved={load} /></td><td>{m.playing_role || "—"}</td>
             <td><Badge tone={m.share_reports ? "green" : "slate"}>{m.share_reports ? "Shared" : "Private"}</Badge></td><td>{m.share_reports ? m.analyses : "—"}</td>
             <td className="text-xs">{(m.coaches || []).map((c) => coaches.find((x) => x.user_id === c)?.full_name).filter(Boolean).join(", ") || "—"}</td>
             <td><Select value={att[m.user_id] || ""} onValueChange={async (v) => { await api.post(`/academies/${aid}/attendance`, { player_id: m.user_id, date, status: v }); setAtt({ ...att, [m.user_id]: v }); }}><SelectTrigger className="h-8 w-28" data-testid={`attendance-${m.user_id}`}><SelectValue placeholder="—" /></SelectTrigger><SelectContent><SelectItem value="present">Present</SelectItem><SelectItem value="absent">Absent</SelectItem><SelectItem value="excused">Excused</SelectItem></SelectContent></Select></td>
@@ -133,7 +138,7 @@ export const Billing = () => {
         <p className="text-sm text-slate-400">{plan.credits} credits · {plan.period_days} days</p>
         <div className="flex gap-2 mt-4"><Input placeholder="Coupon code" value={coupon} onChange={(e) => setCoupon(e.target.value.toUpperCase())} data-testid="coupon-input" /><Button variant="secondary" onClick={checkCoupon} disabled={!coupon} data-testid="coupon-apply-btn">Apply</Button></div>
         <div className="flex gap-2 mt-4"><Button onClick={pay} disabled={busy} className="bg-[#10B981] hover:bg-[#059669] text-[#0B132B]" data-testid="pay-btn">{busy ? "Processing…" : "Pay with Razorpay"}</Button><Button variant="ghost" onClick={() => setPlanId("")}>Change plan</Button></div></Card> :
-        <div className="mb-10"><div className="grid md:grid-cols-3 gap-3 mb-4">{plans.map((p) => <Button key={p.id} variant="secondary" onClick={() => setPlanId(p.id)} data-testid={`select-plan-${p.slug}`}>Select {p.name} · {inr(p.price_inr)}</Button>)}</div><PlanGrid /></div>}
+        <div className="mb-10"><PlanGrid onSelect={setPlanId} /></div>}
       <div className="grid lg:grid-cols-2 gap-6">
         <Card><h3 className="font-semibold mb-3">Subscriptions</h3>{subs.length ? subs.map((s) => <div key={s.id} className="flex justify-between items-center text-sm border-b border-white/5 py-2" data-testid={`sub-${s.id}`}><div><b>{s.plan_name}</b> <Badge tone={statusTone(s.status)}>{s.status}</Badge><div className="text-xs text-slate-400">{s.credits_remaining}/{s.credits_total} credits · until {fmtDate(s.expires_at)}{s.cancel_requested_at ? " · won't renew" : ""}</div></div>
           {s.status === "active" && !s.cancel_requested_at && <Button size="sm" variant="ghost" onClick={async () => { const { data } = await api.post(`/billing/subscriptions/${s.id}/cancel`); toast.success(data.message); load(); }} data-testid={`cancel-sub-${s.id}`}>Cancel renewal</Button>}</div>) : <p className="text-sm text-slate-500">No subscriptions yet.</p>}</Card>

@@ -4,28 +4,34 @@ from typing import Optional, List
 from fastapi import APIRouter, Request, HTTPException, Depends
 from pydantic import BaseModel, Field
 from pymongo import ReturnDocument
-from core import db, now, uid, log, audit, current_user, ADMIN, ledger, send_email, sanitize_error
+from core import db, now, uid, log, audit, current_user, ADMIN, ledger, send_email, sanitize_error, get_settings
 
 router = APIRouter(prefix="/api")
 
 PLAN_DEFAULTS = dict(currency="INR", period_days=30, credits=5, videos_per_analysis=1, max_duration_s=30, max_file_mb=100,
                      report_level="detailed", pdf_export=True, history_access=True, comparisons=True, timeline=True, multi_angle=False,
                      ai_coach=True, training_planner=True, academy_features=False, active=True, billing="monthly", sort=10, description="")
-SEED_PLANS = [
-    {"slug": "batting-monthly", "name": "Batting", "product": "batting", "price_inr": 499, "analysis_types": ["batting"], "sort": 1,
-     "description": "One video of any length per batting analysis."},
-    {"slug": "bowling-monthly", "name": "Bowling", "product": "bowling", "price_inr": 599, "analysis_types": ["bowling"], "sort": 2,
-     "videos_per_analysis": 3, "multi_angle": True, "description": "Up to three angles of any length per bowling analysis."},
-    {"slug": "combined-monthly", "name": "All-Rounder", "product": "combined", "price_inr": 899, "analysis_types": ["batting", "bowling"],
-     "credits": 10, "videos_per_analysis": 3, "multi_angle": True, "report_level": "advanced", "sort": 3,
-     "description": "Batting and bowling with advanced coaching reports."},
-]
+TIERS = [("starter", "Starter", 1, "basic"), ("pro", "Pro", 2, "detailed"), ("elite", "Elite", 3, "advanced")]
+GROUPS = {
+    "batting": ("Batting", ["batting"], [299, 499, 899], [3, 8, 20], "player"),
+    "bowling": ("Bowling", ["bowling"], [349, 599, 999], [3, 8, 20], "player"),
+    "combined": ("Batting + Bowling", ["batting", "bowling"], [549, 899, 1499], [6, 15, 35], "player"),
+    "academy": ("Coach & Academy", ["batting", "bowling"], [1999, 4999, 9999], [30, 100, 300], "coach"),
+}
+SEED_PLANS = []
+for g, (gname, types, prices, credits, aud) in GROUPS.items():
+    for i, (t, tname, vids, level) in enumerate(TIERS):
+        SEED_PLANS.append({"slug": f"{g}-{t}", "name": f"{gname} {tname}", "product": g, "audience": aud, "tier": t, "price_inr": prices[i], "credits": credits[i],
+                           "analysis_types": types, "report_level": level, "videos_per_analysis": vids if g != "batting" else min(vids, 2),
+                           "multi_angle": i > 0 and g != "batting", "max_duration_s": 300, "academy_features": g == "academy",
+                           "sort": list(GROUPS).index(g) * 10 + i + 1, "description": f"{credits[i]} {gname.lower()} analyses per month, {level} reports."})
 
 
 async def seed_plans():
-    if await db.plans.count_documents({}) == 0:
-        for p in SEED_PLANS:
+    for p in SEED_PLANS:
+        if not await db.plans.find_one({"slug": p["slug"]}):
             await db.plans.insert_one({"id": uid(), **PLAN_DEFAULTS, **p, "created_at": now(), "placeholder_price": True})
+    await db.plans.update_many({"slug": {"$in": ["batting-monthly", "bowling-monthly", "combined-monthly"]}, "placeholder_price": True}, {"$set": {"active": False}})
 
 
 def rzp():
@@ -37,8 +43,11 @@ def rzp():
 
 
 @router.get("/plans")
-async def plans():
-    return await db.plans.find({"active": True}, {"_id": 0}).sort("sort", 1).to_list(50)
+async def plans(audience: Optional[str] = None):
+    q = {"active": True}
+    if audience in ("player", "coach"):
+        q["audience"] = {"$in": [audience, None]}
+    return await db.plans.find(q, {"_id": 0}).sort("sort", 1).to_list(100)
 
 
 class PlanIn(BaseModel):
@@ -67,6 +76,8 @@ class PlanIn(BaseModel):
     sort: int = 10
     description: str = ""
     valid_until: Optional[str] = None
+    audience: str = "player"
+    tier: Optional[str] = None
 
 
 @router.get("/admin/plans")
@@ -189,6 +200,7 @@ async def activate(payment, provider_payment_id, source):
     if p.get("coupon"):
         await db.coupons.update_one({"code": p["coupon"]}, {"$inc": {"uses": 1}})
     user = await db.users.find_one({"id": p["user_id"]})
+    await award_commission(p, user)
     await send_email(user["email"], "receipt", {"amount": f"₹{p['amount_inr']}", "plan": plan["name"], "payment_id": provider_payment_id}, user["id"])
     await audit(p["user_id"], "subscription.activated", sub["id"], {"source": source})
     return True
@@ -257,10 +269,38 @@ async def webhook(request: Request):
     return {"ok": True}
 
 
+async def award_commission(p, user):
+    aid = (user or {}).get("referred_academy_id")
+    ac = await db.academies.find_one({"id": aid}) if aid else None
+    if not ac:
+        return
+    cfg = ac.get("commission") or (await get_settings())["commission"]
+    mode, val = cfg.get("mode"), float(cfg.get("value") or 0)
+    if mode == "fixed_per_student":
+        if await db.commissions.find_one({"academy_id": aid, "user_id": user["id"], "status": {"$ne": "reversed"}}):
+            return
+        amt = val
+    elif mode == "percent_first":
+        if await db.payments.count_documents({"user_id": user["id"], "status": {"$in": ["paid", "refunded"]}, "id": {"$ne": p["id"]}}):
+            return
+        amt = p["amount_inr"] * val / 100
+    else:
+        amt = p["amount_inr"] * val / 100
+    if amt <= 0:
+        return
+    try:
+        await db.commissions.insert_one({"id": uid(), "academy_id": aid, "user_id": user["id"], "student_name": user.get("full_name"), "payment_id": p["id"],
+                                         "plan_name": p.get("plan_name"), "payment_amount_inr": p["amount_inr"], "mode": mode, "rate": val,
+                                         "amount_inr": round(amt, 2), "status": "pending", "created_at": now()})
+    except Exception:
+        pass
+
+
 async def mark_refunded(provider_payment_id, refund_id, amount_paise):
     p = await db.payments.find_one_and_update({"payment_id": provider_payment_id, "status": {"$ne": "refunded"}},
                                               {"$set": {"status": "refunded", "refund_id": refund_id, "refunded_inr": (amount_paise or 0) / 100, "refunded_at": now()}})
     if p:
+        await db.commissions.update_many({"payment_id": p["id"], "status": "pending"}, {"$set": {"status": "reversed", "reversed_at": now()}})
         sub = await db.subscriptions.find_one_and_update({"payment_id": p["id"], "status": "active"}, {"$set": {"status": "refunded", "credits_remaining": 0}})
         if sub:
             await ledger(p["user_id"], -sub["credits_remaining"], "refund_revoked", p["id"], sub["id"])

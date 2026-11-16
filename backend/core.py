@@ -80,7 +80,10 @@ DEFAULT_SETTINGS = {
               "leaderboard": False, "otp_login": True, "blog_ai": True, "require_otp_every_login": False},
     "limits": {"max_concurrent_jobs": 2, "job_timeout_s": 600, "max_retries": 2, "frames_per_video": 6,
                "est_cost_per_analysis_inr": 6, "monthly_cost_alert_inr": 5000, "retention_days": 365},
+    "keys": {"anthropic_mode": "rotate", "ultralytics_mode": "rotate"},
+    "commission": {"mode": "percent_every", "value": 10},
 }
+APPROVAL_OPEN = ("/api/auth/", "/api/account/", "/api/media/", "/api/plans", "/api/public/")
 
 
 async def get_settings():
@@ -125,6 +128,8 @@ async def current_user(request: Request):
     if not u or u.get("status") == "suspended":
         raise HTTPException(401, "Your session is no longer valid.")
     u["_session"] = {"id": s["id"], "step_up_until": s.get("step_up_until")}
+    if u["role"] in ("coach", "academy_admin") and u.get("approval_status") in ("pending", "rejected") and not request.url.path.startswith(APPROVAL_OPEN):
+        raise HTTPException(403, "coach_approval_pending")
     return u
 
 
@@ -176,6 +181,11 @@ EMAIL_TEMPLATES = {
     "report_ready": ("Your analysis report is ready", "Report ready", "Your {kind} analysis is complete. Open CricAnalyze to view it.", False),
     "academy_invite": ("You're invited to {academy} on CricAnalyze", "Academy invitation",
                        "{academy} invited you to join as a {role}. Open this link to accept: {link}", False),
+    "report_delivery": ("Your CricAnalyze {kind} report", "Your report is ready",
+                        "Your {kind} analysis report is ready. Open it in CricAnalyze: {link} — Shareable link (anyone with it can view): {share}. {pdf_note}", False),
+    "join_request": ("New join request — {academy}", "Join request", "{player} asked to join {academy}. Review it in CricAnalyze: {link}", False),
+    "join_decision": ("Your request to join {academy}", "Academy request {decision}", "Your request to join {academy} was {decision}.", False),
+    "coach_approval": ("Your CricAnalyze coach account was {decision}", "Account {decision}", "{message}", False),
     "notice": ("Important account notice — CricAnalyze", "Account notice", "{message}", False),
     "test": ("CricAnalyze SMTP test", "SMTP test", "This is a test email from the CricAnalyze admin console.", False),
 }
@@ -199,7 +209,7 @@ def smtp_configured():
     return all(os.environ.get(k) for k in ("SMTP_HOST", "SMTP_PORT", "SMTP_USER", "SMTP_PASS", "SMTP_FROM_EMAIL"))
 
 
-def _smtp_send(to, subject, html, text):
+def _smtp_send(to, subject, html, text, attachments=None):
     host, port = os.environ["SMTP_HOST"], int(os.environ["SMTP_PORT"])
     secure = os.environ.get("SMTP_SECURE", "ssl").strip().lower()
     msg = EmailMessage()
@@ -207,6 +217,9 @@ def _smtp_send(to, subject, html, text):
     msg["To"], msg["Subject"] = to, subject
     msg.set_content(text)
     msg.add_alternative(html, subtype="html")
+    for name, data, mime in attachments or []:
+        mt, st = mime.split("/")
+        msg.add_attachment(data, maintype=mt, subtype=st, filename=name)
     ctx = ssl.create_default_context()
     if secure in ("ssl", "true", "1", "yes", "tls") or port == 465:
         server = smtplib.SMTP_SSL(host, port, context=ctx, timeout=20)
@@ -224,10 +237,17 @@ def sanitize_error(e: Exception) -> str:
         v = os.environ.get(k)
         if v:
             msg = msg.replace(v, "***")
+    try:
+        import key_pool
+        for p in key_pool.PROVIDERS:
+            for k in key_pool.entries(p):
+                msg = msg.replace(k["key"], "***")
+    except Exception:
+        pass
     return f"{type(e).__name__}: {msg[:180]}"
 
 
-async def send_email(to: str, template: str, ctx: dict, user_id=None) -> bool:
+async def send_email(to: str, template: str, ctx: dict, user_id=None, attachments=None) -> bool:
     subject, html, text = render_email(template, ctx)
     log_id = uid()
     await db.email_logs.insert_one({"id": log_id, "to": to, "template": template, "user_id": user_id,
@@ -240,7 +260,7 @@ async def send_email(to: str, template: str, ctx: dict, user_id=None) -> bool:
         await db.email_logs.update_one({"id": log_id}, {"$set": {"status": "failed", "error": "SMTP not configured"}})
         return False
     try:
-        await asyncio.to_thread(_smtp_send, to, subject, html, text)
+        await asyncio.to_thread(_smtp_send, to, subject, html, text, attachments)
         await db.email_logs.update_one({"id": log_id}, {"$set": {"status": "accepted", "accepted_at": now()}})
         return True
     except Exception as e:
@@ -402,6 +422,20 @@ def is_minor(u):
 
 async def llm_text(system: str, prompt: str, session: str, images=None) -> str:
     from emergentintegrations.llm.chat import LlmChat, UserMessage, ImageContent
-    chat = LlmChat(api_key=AI_KEY, session_id=session, system_message=system).with_model("anthropic", AI_MODEL)
-    msg = UserMessage(text=prompt, file_contents=[ImageContent(image_base64=b) for b in (images or [])] or None)
-    return await chat.send_message(msg)
+    import key_pool
+    keys = key_pool.ordered("anthropic")
+    if not keys:
+        raise RuntimeError("No Anthropic API key is configured.")
+    err = None
+    for e in keys:
+        chat = LlmChat(api_key=e["key"], session_id=f"{session}-{e['id'][:6]}", system_message=system).with_model("anthropic", AI_MODEL)
+        msg = UserMessage(text=prompt, file_contents=[ImageContent(image_base64=b) for b in (images or [])] or None)
+        try:
+            out = await chat.send_message(msg)
+            key_pool.mark_ok(e)
+            return out
+        except Exception as ex:
+            err = ex
+            m = str(ex).lower()
+            key_pool.mark_bad(e, 600 if ("auth" in m or "401" in m or "credit" in m) else 60, sanitize_error(ex))
+    raise err

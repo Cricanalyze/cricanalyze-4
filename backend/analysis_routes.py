@@ -7,6 +7,7 @@ import score_engine
 import report_view
 import action_window
 import report_pdf as pdfgen
+import key_pool
 from datetime import datetime
 from typing import List, Optional
 from fastapi import APIRouter, Request, Response, HTTPException, Depends, UploadFile, File, Form, Query
@@ -191,6 +192,18 @@ class AnalysisIn(BaseModel):
     idempotency_key: str = Field(min_length=8, max_length=64)
     notes: Optional[str] = Field(None, max_length=300)
     shot_type: Optional[str] = Field(None, max_length=60)
+    email_at: Optional[str] = Field(None, max_length=40)
+
+
+def parse_when(v):
+    try:
+        d = datetime.fromisoformat(v.replace("Z", "+00:00"))
+    except Exception:
+        raise HTTPException(422, "Invalid date/time for the report email.")
+    if d.tzinfo is None:
+        from datetime import timezone, timedelta as _td
+        d = d.replace(tzinfo=timezone(_td(hours=5, minutes=30)))
+    return d
 
 
 async def reserve_credit(user_id, analysis_type, ref):
@@ -236,6 +249,7 @@ async def create_analysis(body: AnalysisIn, request: Request, u=Depends(current_
             raise HTTPException(402, "Multi-angle analysis isn't included in your plan.")
     if len({v["angle"] for v in vids}) != len(vids):
         raise HTTPException(422, "Each video in a multi-angle analysis must have a different camera angle.")
+    email_at = parse_when(body.email_at) if body.email_at else None
     job_id = uid()
     sub = None
     if not staff:
@@ -245,7 +259,7 @@ async def create_analysis(body: AnalysisIn, request: Request, u=Depends(current_
     level = (sub["plan_snapshot"].get("report_level") if sub else "advanced") or "basic"
     job = {"id": job_id, "user_id": u["id"], "analysis_type": body.analysis_type, "video_ids": [v["id"] for v in vids],
            "idempotency_key": body.idempotency_key, "status": "queued", "attempts": 0, "progress": 0, "report_level": level,
-           "subscription_id": sub["id"] if sub else None, "credit_state": "reserved" if sub else "none", "notes": body.notes, "shot_type": body.shot_type,
+           "subscription_id": sub["id"] if sub else None, "credit_state": "reserved" if sub else "none", "notes": body.notes, "shot_type": body.shot_type, "email_at": email_at,
            "consent_at": now(), "created_at": now(), "updated_at": now(), "next_run_at": now()}
     try:
         await db.analysis_jobs.insert_one(job)
@@ -525,7 +539,7 @@ async def run_provider(job, vids, frames_by_video, biomechs=None):
     provider = os.environ.get("AI_INFERENCE_PROVIDER", "vision_llm")
     if provider != "vision_llm":
         raise PermanentError(f"AI provider '{provider}' is not configured on this server.")
-    if not AI_KEY:
+    if not key_pool.has("anthropic"):
         raise PermanentError("AI analysis provider is not configured. An administrator must add the AI key.")
     imgs = [base64.b64encode(f["jpg"]).decode() for _, fr in frames_by_video for f in fr]
     text = await llm_text(SYSTEM, build_prompt(job["analysis_type"], frames_by_video, job.get("notes"), biomechs, job.get("shot_type")), f"job-{job['id']}-{job['attempts']}", imgs)
@@ -637,9 +651,10 @@ async def process_job(job):
         await ledger(job["user_id"], 0, "analysis_consumed", job["id"], job.get("subscription_id"))
     await db.performance_timelines.update_one({"user_id": job["user_id"], "analysis_type": job["analysis_type"]},
                                               {"$push": {"entries": {"job_id": job["id"], "at": now(), "scores": rep["scores"]}}}, upsert=True)
-    user = await db.users.find_one({"id": job["user_id"]})
-    if user:
-        await send_email(user["email"], "report_ready", {"kind": job["analysis_type"]}, user["id"])
+    if job.get("email_at") and job["email_at"] > now():
+        await db.report_schedules.insert_one({"id": uid(), "job_id": job["id"], "user_id": job["user_id"], "send_at": job["email_at"], "status": "pending", "created_at": now()})
+    else:
+        await deliver_report(job["id"])
 
 
 async def handle_job(job):
@@ -752,3 +767,85 @@ async def public_report_pdf(token: str):
     await attach_view(viewer, job, rep)
     pdf = await pdfgen.get_or_build(rep, job, owner)
     return Response(pdf, media_type="application/pdf", headers={"Content-Disposition": f"attachment; filename=cricanalyze-{job['id'][:8]}.pdf"})
+
+
+# ---------- report email delivery & scheduling ----------
+async def ensure_share(job):
+    token = job.get("share_token") if job.get("share_enabled") else None
+    if not token:
+        token = secrets.token_urlsafe(18)
+        await db.analysis_jobs.update_one({"id": job["id"]}, {"$set": {"share_token": token, "share_enabled": True, "shared_at": now()}})
+    return token
+
+
+async def deliver_report(job_id, to=None):
+    from core import APP_URL
+    job = await db.analysis_jobs.find_one({"id": job_id}, {"_id": 0})
+    owner = await db.users.find_one({"id": job["user_id"]}) if job else None
+    if not job or not owner or job["status"] != "completed":
+        return False
+    token = await ensure_share(job)
+    job = await db.analysis_jobs.find_one({"id": job_id}, {"_id": 0})
+    attachments, note = None, "Open the report in CricAnalyze for the full view."
+    if (await entitlements(job["user_id"]))["pdf_export"]:
+        try:
+            viewer = {**owner, "role": "player"}
+            rep = await load_report_for(viewer, job)
+            await attach_view(viewer, job, rep)
+            attachments = [(f"cricanalyze-{job_id[:8]}.pdf", await pdfgen.get_or_build(rep, job, owner), "application/pdf")]
+            note = "Your PDF report is attached."
+        except Exception as e:
+            log.warning(f"report pdf for email failed {sanitize_error(e)}")
+    ok = await send_email(to or owner["email"], "report_delivery", {"kind": job["analysis_type"], "link": f"{APP_URL}/app/analyses/{job_id}",
+                                                                    "share": f"{APP_URL}/r/{token}", "pdf_note": note}, owner["id"], attachments)
+    await db.analysis_jobs.update_one({"id": job_id}, {"$set": {"last_emailed_at": now()} if ok else {"last_email_error": "send failed"}})
+    return ok
+
+
+class EmailIn(BaseModel):
+    send_at: Optional[str] = Field(None, max_length=40)
+
+
+@router.post("/analyses/{job_id}/email")
+async def email_report(job_id: str, body: EmailIn, u=Depends(current_user)):
+    job = await get_job_authorized(u, job_id)
+    if u["id"] != job["user_id"] and u["role"] not in STAFF:
+        raise HTTPException(403, "Only the player can email this report.")
+    if not body.send_at:
+        if job["status"] != "completed":
+            raise HTTPException(409, "The report isn't ready yet.")
+        if not await deliver_report(job_id):
+            raise HTTPException(503, "We couldn't send the email. Please try again.")
+        return {"ok": True, "sent": True}
+    when = parse_when(body.send_at)
+    if when <= now():
+        raise HTTPException(422, "Pick a time in the future.")
+    if await db.report_schedules.count_documents({"job_id": job_id, "status": "pending"}) >= 5:
+        raise HTTPException(409, "You already have 5 scheduled emails for this report.")
+    sid = uid()
+    await db.report_schedules.insert_one({"id": sid, "job_id": job_id, "user_id": job["user_id"], "send_at": when, "status": "pending", "created_at": now()})
+    return {"ok": True, "scheduled": True, "id": sid, "send_at": when}
+
+
+@router.get("/analyses/{job_id}/email-schedules")
+async def list_schedules(job_id: str, u=Depends(current_user)):
+    job = await get_job_authorized(u, job_id)
+    return {"email_at": job.get("email_at"), "last_emailed_at": job.get("last_emailed_at"),
+            "schedules": await db.report_schedules.find({"job_id": job_id}, {"_id": 0}).sort("send_at", 1).to_list(20)}
+
+
+@router.delete("/report-schedules/{sid}")
+async def cancel_schedule(sid: str, u=Depends(current_user)):
+    r = await db.report_schedules.update_one({"id": sid, "user_id": u["id"], "status": "pending"}, {"$set": {"status": "cancelled"}})
+    if not r.modified_count:
+        raise HTTPException(404, "Scheduled email not found.")
+    return {"ok": True}
+
+
+async def send_due_reports():
+    while True:
+        s = await db.report_schedules.find_one_and_update({"status": "pending", "send_at": {"$lte": now()}}, {"$set": {"status": "sending"}})
+        if not s:
+            return
+        ok = await deliver_report(s["job_id"])
+        await db.report_schedules.update_one({"id": s["id"]}, {"$set": {"status": "sent" if ok else "failed", "sent_at": now()}})

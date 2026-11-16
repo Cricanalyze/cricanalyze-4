@@ -3,6 +3,7 @@ from datetime import timedelta
 from typing import Optional
 from fastapi import APIRouter, Request, HTTPException, Depends
 from pydantic import BaseModel, Field, EmailStr
+import key_pool
 from core import (db, now, uid, audit, ADMIN, current_user, optional_user, ROLES, smtp_configured, send_email, get_settings,
                   DEFAULT_SETTINGS, init_storage, LLM_KEY, AI_KEY, AI_MODEL, llm_text, sanitize_error, rate_limit, client_ip, public_user)
 
@@ -75,10 +76,10 @@ async def integration_status():
     rows = {x["_id"]: x for x in await db.integration_status.find().to_list(50)}
     defs = {
         "smtp": ("Hostinger SMTP email", smtp_configured(), {"sender": os.environ.get("SMTP_FROM_EMAIL"), "host": os.environ.get("SMTP_HOST")}),
-        "ai": ("AI analysis provider (your Anthropic key)", bool(AI_KEY) and os.environ.get("AI_INFERENCE_PROVIDER", "vision_llm") == "vision_llm",
+        "ai": ("AI analysis provider (your Anthropic key)", key_pool.has("anthropic") and os.environ.get("AI_INFERENCE_PROVIDER", "vision_llm") == "vision_llm",
                {"provider": os.environ.get("AI_INFERENCE_PROVIDER", "vision_llm"), "model": AI_MODEL}),
         "gpu_inference": ("Hosted GPU pose inference (RunPod etc.)", bool(os.environ.get("AI_INFERENCE_ENDPOINT") and os.environ.get("AI_INFERENCE_API_KEY")), {}),
-        "ultralytics": ("Ultralytics YOLO26n (pose + ball)", bool(os.environ.get("ULTRALYTICS_API_KEY")),
+        "ultralytics": ("Ultralytics YOLO26n (pose + ball)", key_pool.has("ultralytics"),
                         {"pose_provider": os.environ.get("POSE_PROVIDER"), "ball_provider": os.environ.get("BALL_PROVIDER")}),
         "storage": ("Private object storage", bool(LLM_KEY), {"provider": os.environ.get("VIDEO_STORAGE_PROVIDER", "emergent")}),
         "razorpay": ("Razorpay payments", bool(os.environ.get("RAZORPAY_KEY_ID") and os.environ.get("RAZORPAY_KEY_SECRET")),
@@ -154,6 +155,8 @@ async def settings(a=Depends(ADMIN)):
 class SettingsIn(BaseModel):
     flags: dict = {}
     limits: dict = {}
+    keys: dict = {}
+    commission: dict = {}
     confirm: bool = False
 
 
@@ -168,7 +171,17 @@ async def save_settings(body: SettingsIn, request: Request, a=Depends(ADMIN)):
     for k, v in body.limits.items():
         if k in DEFAULT_SETTINGS["limits"]:
             upd[f"limits.{k}"] = max(0, float(v)) if k.startswith("est_") or k.endswith("_inr") else max(1, int(v))
+    for k, v in body.keys.items():
+        if k in DEFAULT_SETTINGS["keys"] and v in ("rotate", "failover"):
+            upd[f"keys.{k}"] = v
+    if body.commission.get("mode") in ("fixed_per_student", "percent_first", "percent_every"):
+        upd["commission.mode"] = body.commission["mode"]
+    if "value" in body.commission:
+        upd["commission.value"] = max(0.0, float(body.commission["value"]))
+    if not upd:
+        return await get_settings()
     await db.settings.update_one({"_id": "app"}, {"$set": upd}, upsert=True)
+    await key_pool.refresh(db)
     await audit(a["id"], "admin.settings", None, upd, request)
     return await get_settings()
 

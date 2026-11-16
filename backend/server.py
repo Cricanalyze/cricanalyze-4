@@ -4,10 +4,10 @@ from fastapi.responses import JSONResponse
 from fastapi.exceptions import RequestValidationError
 from starlette.middleware.cors import CORSMiddleware
 from core import db, log, init_storage, sanitize_error
-import auth_routes, analysis_routes, billing_routes, coach_routes, academy_routes, blog_routes, admin_routes
+import auth_routes, analysis_routes, billing_routes, coach_routes, academy_routes, blog_routes, admin_routes, admin_extra_routes, key_pool
 
 app = FastAPI(title="CricAnalyze API", version="1.0", docs_url="/api/docs", openapi_url="/api/openapi.json")
-for m in (auth_routes, analysis_routes, billing_routes, coach_routes, academy_routes, blog_routes, admin_routes):
+for m in (auth_routes, analysis_routes, billing_routes, coach_routes, academy_routes, blog_routes, admin_routes, admin_extra_routes):
     app.include_router(m.router)
 
 CSRF_EXEMPT = {"/api/billing/webhook", "/api/auth/login", "/api/auth/signup", "/api/auth/verify-email", "/api/auth/login/otp/verify",
@@ -71,6 +71,11 @@ async def ensure_indexes():
     await db.training_completions.create_index([("user_id", 1), ("plan_id", 1), ("item_id", 1)], unique=True)
     await db.passport_shares.create_index("token_hash", unique=True)
     await db.audit_logs.create_index("created_at")
+    await db.academies.create_index("code", unique=True, sparse=True)
+    await db.academy_join_requests.create_index([("academy_id", 1), ("status", 1)])
+    await db.commissions.create_index("payment_id", unique=True)
+    await db.commissions.create_index([("academy_id", 1), ("created_at", -1)])
+    await db.report_schedules.create_index([("status", 1), ("send_at", 1)])
 
 
 async def scheduler_loop():
@@ -78,6 +83,8 @@ async def scheduler_loop():
         try:
             await blog_routes.publish_due()
             await billing_routes.expire_subscriptions()
+            await analysis_routes.send_due_reports()
+            await key_pool.refresh(db)
         except Exception as e:
             log.error(f"scheduler error {sanitize_error(e)}")
         await asyncio.sleep(30)
@@ -87,6 +94,8 @@ async def scheduler_loop():
 async def startup():
     await ensure_indexes()
     await billing_routes.seed_plans()
+    await academy_routes.ensure_codes()
+    await key_pool.refresh(db)
     await blog_routes.seed_blog()
     try:
         await asyncio.to_thread(init_storage)

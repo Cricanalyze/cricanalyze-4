@@ -73,25 +73,36 @@ export const ExampleReport = ({ className = "" }) => (
   </div>
 );
 
-export const PlanGrid = () => {
+const PRODUCTS = [["batting", "Batting"], ["bowling", "Bowling"], ["combined", "Batting + Bowling"], ["academy", "Coach & Academy"]];
+
+export const PlanGrid = ({ onSelect }) => {
   const [plans, setPlans] = useState([]);
   const { user } = useAuth();
+  const coach = ["coach", "academy_admin"].includes(user?.role);
+  const [prod, setProd] = useState(coach ? "academy" : "batting");
   useEffect(() => { api.get("/plans").then(({ data }) => setPlans(data)).catch(() => {}); }, []);
+  const shown = plans.filter((p) => (p.product || "batting") === prod);
   return (
-    <div className="grid md:grid-cols-3 gap-5" data-testid="plan-grid">
-      {plans.map((p, i) => (
-        <div key={p.id} className={`rounded-2xl p-7 border ${i === 2 ? "border-[#10B981]/50 bg-[#10B981]/5" : "border-white/10 bg-[#0B132B]"}`} data-testid={`plan-card-${p.slug}`}>
-          <div className="eyebrow">{p.billing}</div>
+    <div data-testid="plan-grid">
+      <div className="flex flex-wrap gap-2 mb-6" role="tablist">{PRODUCTS.map(([v, l]) => <button key={v} onClick={() => setProd(v)} role="tab" aria-selected={prod === v} data-testid={`plan-tab-${v}`}
+        className={`px-4 py-2 rounded-full text-sm border transition-colors ${prod === v ? "border-[#10B981] bg-[#10B981]/10 text-white" : "border-white/10 text-slate-300 hover:border-white/30"}`}>{l}</button>)}</div>
+      <div className="grid md:grid-cols-3 gap-5">
+      {shown.map((p, i) => (
+        <div key={p.id} className={`rounded-2xl p-7 border ${i === 1 ? "border-[#10B981]/50 bg-[#10B981]/5" : "border-white/10 bg-[#0B132B]"}`} data-testid={`plan-card-${p.slug}`}>
+          <div className="eyebrow">{p.tier || p.billing}</div>
           <h3 className="text-2xl font-bold mt-2">{p.name}</h3>
           <div className="text-4xl font-display font-extrabold mt-4">{inr(p.price_inr)}<span className="text-sm text-slate-400 font-normal"> / {p.period_days} days</span></div>
           <p className="text-sm text-slate-400 mt-2 min-h-[40px]">{p.description}</p>
           <ul className="mt-5 space-y-2 text-sm">
             {[`${p.credits} analysis credits`, `${p.analysis_types.join(" + ")} analysis`, `${p.videos_per_analysis} video(s) per analysis, any length`, `${p.report_level} report`,
-              p.multi_angle && "Multi-angle input", p.pdf_export && "PDF export", p.comparisons && "Before/after comparisons", p.ai_coach && "AI coach", p.training_planner && "Training planner"].filter(Boolean)
+              p.academy_features && "Academy workspace, join codes & leaderboard", p.multi_angle && "Multi-angle input", p.pdf_export && "PDF export + emailed reports", p.comparisons && "Before/after comparisons", p.ai_coach && "AI coach", p.training_planner && "Training planner"].filter(Boolean)
               .map((x) => <li key={x} className="flex gap-2"><CheckCircle2 size={16} className="text-[#10B981] shrink-0 mt-0.5" /><span className="capitalize-first">{x}</span></li>)}
           </ul>
-          <Button asChild className="w-full mt-7 rounded-full" variant={i === 2 ? "default" : "secondary"} data-testid={`plan-buy-${p.slug}`}><Link to={user ? `/app/billing?plan=${p.id}` : `/signup`}>Choose {p.name}</Link></Button>
+          {onSelect ? <Button className="w-full mt-7 rounded-full" variant={i === 1 ? "default" : "secondary"} onClick={() => onSelect(p.id)} data-testid={`select-plan-${p.slug}`}>Choose {p.name}</Button> :
+            <Button asChild className="w-full mt-7 rounded-full" variant={i === 1 ? "default" : "secondary"} data-testid={`plan-buy-${p.slug}`}><Link to={user ? `/app/billing?plan=${p.id}` : `/signup`}>Choose {p.name}</Link></Button>}
         </div>))}
+      {!shown.length && <p className="text-sm text-slate-500">No plans in this group yet.</p>}
+      </div>
     </div>
   );
 };

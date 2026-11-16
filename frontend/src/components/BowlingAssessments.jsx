@@ -23,7 +23,7 @@ const Item = ({ x }) => {
 
 export const BowlingAssessments = ({ items }) => !items?.length ? null : (
   <Card data-testid="bowling-assessments">
-    <h3 className="font-semibold text-base flex items-center gap-2 mb-1"><Footprints size={17} className="text-[#00B4D8]" />Bowling biomechanics</h3>
+    <h3 className="font-semibold text-base flex items-center gap-2 mb-1"><Footprints size={17} className="text-[#00B4D8]" />Biomechanics &amp; weight transfer</h3>
     <p className="text-xs text-slate-400 mb-4">Measured from the original video frames at their original timestamps. Not part of the technique score. Anything that couldn't be seen clearly is marked unavailable.</p>
     <div className="grid md:grid-cols-2 gap-4">{items.map((x) => <Item key={x.key} x={x} />)}</div>
   </Card>);

@@ -211,7 +211,7 @@ def build(rep, job, owner, blobs):
                 det = "<br/>".join(f"{d['label']}: {d['value']}" for d in x["details"]) + (f"<br/>AI visual note (foot direction): {x['ai_note']}" if x.get("ai_note") else "")
                 img = fit_image(blobs[x["overlay_asset_id"]], 110, 80) if blobs.get(x.get("overlay_asset_id")) else P("—" if x["status"] != "measured" else "", "cell")
                 rows.append([P(f"<b>{x['name']}</b><br/>{x['status_label']}", "cell"), P(x["summary"] or x["reason"], "cell"), P(det or "", "cell"), img])
-            s += section(f"Bowling biomechanics - {a['angle']} camera", grid_table(rows, [95, 120, CW - 335, 120]),
+            s += section(f"Biomechanics - {a['angle']} camera", grid_table(rows, [95, 120, CW - 335, 120]),
                          P("Measured from the original video frames at their original timestamps (2D body tracking). These assessments are not part of the technique score. "
                            "Trunk lean is whole-trunk lean; lower-back bending and spinal curvature are not measured.", "small"))
         if not a["pose_available"]:

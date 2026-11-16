@@ -5,7 +5,7 @@ import requests
 
 BASE = "https://platform.ultralytics.com/api/models/ultralytics/yolo26"
 _lock = threading.Lock()
-_last = [0.0]
+_last = {}
 
 
 class UltralyticsError(Exception):
@@ -13,44 +13,64 @@ class UltralyticsError(Exception):
 
 
 def configured():
-    return bool(os.environ.get("ULTRALYTICS_API_KEY"))
+    import key_pool
+    return key_pool.has("ultralytics")
 
 
-def _url(task):
+def _url(task, e=None):
     if task == "pose":
-        return os.environ.get("ULTRALYTICS_POSE_URL") or f"{BASE}/yolo26n-pose/predict"
-    return os.environ.get("ULTRALYTICS_DETECT_URL") or f"{BASE}/yolo26n/predict"
+        return (e or {}).get("pose_url") or os.environ.get("ULTRALYTICS_POSE_URL") or f"{BASE}/yolo26n-pose/predict"
+    return (e or {}).get("detect_url") or os.environ.get("ULTRALYTICS_DETECT_URL") or f"{BASE}/yolo26n/predict"
 
 
 def _interval():
     return 60.0 / max(1.0, float(os.environ.get("ULTRALYTICS_RPM", "20")))
 
 
+def _wait(kid):
+    with _lock:
+        wait = _last.get(kid, 0.0) + _interval() - time.monotonic()
+        _last[kid] = max(time.monotonic(), _last.get(kid, 0.0) + _interval())
+    if wait > 0:
+        time.sleep(wait)
+
+
 def predict(img, task="detect", conf=0.25, imgsz=640):
-    """img: BGR ndarray. Returns list of results (name, confidence, box, keypoints?) in img pixel coords."""
-    key = os.environ.get("ULTRALYTICS_API_KEY")
-    if not key:
-        raise UltralyticsError("Ultralytics API key is not configured.")
+    """img: BGR ndarray. Tries each configured key (rotate/failover); rate-limited or rejected keys are skipped."""
+    import key_pool
     jpg = cv2.imencode(".jpg", img, [cv2.IMWRITE_JPEG_QUALITY, 90])[1].tobytes()
     data = {"conf": str(conf), "iou": "0.7", "imgsz": str(imgsz), "normalize": "false"}
-    for attempt in range(4):
-        with _lock:
-            wait = _last[0] + _interval() - time.monotonic()
-            if wait > 0:
-                time.sleep(wait)
-            _last[0] = time.monotonic()
-        r = requests.post(_url(task), headers={"Authorization": f"Bearer {key}"}, data=data,
-                          files={"file": ("frame.jpg", jpg, "image/jpeg")}, timeout=60)
-        if r.status_code == 429:
-            time.sleep(min(float(r.headers.get("Retry-After") or 5), 30))
-            continue
-        if r.status_code in (401, 403):
-            raise UltralyticsError("Ultralytics rejected the API key.")
-        if r.status_code >= 400:
-            raise UltralyticsError(f"Ultralytics inference failed (HTTP {r.status_code}).")
-        imgs = r.json().get("images") or [{}]
-        return imgs[0].get("results") or []
-    raise UltralyticsError("Ultralytics rate limit reached; try again later.")
+    last = "Ultralytics API key is not configured."
+    for attempt in range(3):
+        keys = key_pool.ordered("ultralytics")
+        if not keys:
+            raise UltralyticsError(last)
+        for e in keys:
+            _wait(e["id"])
+            try:
+                r = requests.post(_url(task, e), headers={"Authorization": f"Bearer {e['key']}"}, data=data,
+                                  files={"file": ("frame.jpg", jpg, "image/jpeg")}, timeout=60)
+            except requests.RequestException as ex:
+                key_pool.mark_bad(e, 30, type(ex).__name__)
+                last = "Ultralytics could not be reached."
+                continue
+            if r.status_code == 429:
+                key_pool.mark_bad(e, min(float(r.headers.get("Retry-After") or 15), 60), "rate limited (429)")
+                last = "Ultralytics rate limit reached; try again later."
+                continue
+            if r.status_code in (401, 403):
+                key_pool.mark_bad(e, 900, f"rejected ({r.status_code})")
+                last = "Ultralytics rejected the API key."
+                continue
+            if r.status_code >= 400:
+                key_pool.mark_bad(e, 30, f"HTTP {r.status_code}")
+                last = f"Ultralytics inference failed (HTTP {r.status_code})."
+                continue
+            key_pool.mark_ok(e)
+            imgs = r.json().get("images") or [{}]
+            return imgs[0].get("results") or []
+        time.sleep(5)
+    raise UltralyticsError(last)
 
 
 def pose_persons(img):

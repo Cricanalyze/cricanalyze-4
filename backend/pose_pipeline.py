@@ -500,6 +500,10 @@ def analyse_video(path, kind, angle_label, meta, window=None):
         import bowling_assess
         assessments, aimgs = bowling_assess.assess(seq, ph, arm, angle_label, fps)
         imgs += aimgs
+    else:
+        import batting_assess
+        assessments, aimgs = batting_assess.assess(ph, angle_label)
+        imgs += aimgs
     sc = score(kind, mets, phases)
     status = "measured" if any(m["status"].startswith("measured") for m in mets) else "insufficient"
     track = [{"t": f["t"], "idx": f["idx"], "kp": [[round(x / f["img"].shape[1], 4), round(y / f["img"].shape[0], 4), round(s, 2)] for x, y, s in f["kp"]]}

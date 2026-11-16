@@ -246,6 +246,60 @@ def trunk_lean(ph, arm, angle, run_dir):
     return d
 
 
+METHOD["weight_transfer"] = ("Hip centre position along the line from the back ankle (at back-foot contact) to the front ankle (at front-foot contact): "
+                             "0% = over the back foot, 100% = over the front foot, above 100% = past the front foot. Checked at back-foot contact, front-foot contact, release and "
+                             "follow-through. Hip speed = hip-centre travel between the two foot contacts, in torso lengths per second. Head position = nose vs front knee at release. Side-on camera, 2D.")
+NAMES["weight_transfer"] = "Weight transfer (back foot → front foot)"
+
+
+def weight_transfer(ph, arm, angle):
+    d = _base("weight_transfer", "release")
+    if angle != "side_on":
+        d["reason"] = "Weight transfer needs a side-on camera."
+        return d
+    b, q = ph.get("back_foot_contact"), ph.get("front_foot_contact")
+    if not b or not q or not arm:
+        d["reason"] = "Both foot contacts must be identified to measure weight transfer."
+        return d
+    fr, bk = ("r", "l") if arm == "l_wri" else ("l", "r")
+    ba, fa = Pk(b["frame"], f"{bk}_ank"), Pk(q["frame"], f"{fr}_ank")
+    if not ba or not fa or abs(fa[0] - ba[0]) < 0.3 * (pp.torso(q["frame"]) or 1e9):
+        d["reason"] = "The back and front ankles weren't clear enough at the foot contacts."
+        return d
+    rows, vals = [], {}
+    for key, label in (("back_foot_contact", "Back-foot contact"), ("front_foot_contact", "Front-foot contact"), ("release", "Release"), ("_follow_through", "Follow-through")):
+        p = ph.get(key)
+        hm = _mid(p["frame"], "l_hip", "r_hip") if p else None
+        if not hm:
+            rows.append({"label": label, "value": "Not available"})
+            continue
+        v = round(100 * (hm[0] - ba[0]) / (fa[0] - ba[0]))
+        vals[key] = (v, p["frame"], hm)
+        rows.append({"label": label, "value": f"{v}% towards the front foot · {p['frame']['t']:.3f} s"})
+    if "release" not in vals and "front_foot_contact" not in vals:
+        d["reason"] = "Hips weren't clearly visible at front-foot contact or release."
+        return d
+    v, f, hm = vals.get("release") or vals["front_foot_contact"]
+    _at(d, f)
+    d["status"] = "measured"
+    if "back_foot_contact" in vals and "front_foot_contact" in vals:
+        dt = vals["front_foot_contact"][1]["t"] - vals["back_foot_contact"][1]["t"]
+        t = pp.torso(f)
+        if dt > 0 and t:
+            rows.append({"label": "Hip speed between foot contacts", "value": f"{abs(vals['front_foot_contact'][2][0] - vals['back_foot_contact'][2][0]) / t / dt:.2f} torso lengths/s"})
+    n, k = Pk(f, "nose"), Pk(f, f"{fr}_knee")
+    if n and k and pp.torso(f):
+        off = (n[0] - k[0]) * (1 if fa[0] > ba[0] else -1) / pp.torso(f)
+        rows.append({"label": "Head vs front knee at release", "value": "head over the front knee" if abs(off) < 0.15 else f"head {abs(off):.2f} torso lengths {'ahead of' if off > 0 else 'behind'} the front knee"})
+    state = "driving well over the front leg" if v >= 85 else "still partly on the back foot" if v < 60 else "moving onto the front foot"
+    d["summary"] = f"At {'release' if 'release' in vals else 'front-foot contact'} the hips were {v}% of the way to the front foot — {state}."
+    d["details"] = rows
+    y = max(ba[1], fa[1])
+    d["marks"].append(_mark(f, f"Weight {v}%", [((ba[0], y), (fa[0], y), "#E2E8F0"), ((hm[0], hm[1]), (hm[0], y), "#F59E0B")]))
+    d["_draw"] = (f, [((ba[0], y), (fa[0], y), (220, 220, 220)), ((hm[0], hm[1]), (hm[0], y), (11, 158, 245))])
+    return d
+
+
 def _dashed(img, a, b, color, t):
     n = max(1, int(math.dist(a, b) // 14))
     for i in range(0, n, 2):
@@ -278,7 +332,7 @@ def assess(seq, ph, arm, angle, fps):
     ffc = (ph.get("front_foot_contact") or {}).get("frame")
     run_dir = run_direction(seq, rel["frame"]["t"], ffc if angle == "side_on" else None, arm) if rel else None
     bf, _ = back_foot(seq, ph, arm, angle, fps, run_dir)
-    out = [bf, action_type(seq, ph, angle), shin_lead(ph, arm, angle, run_dir), trunk_lean(ph, arm, angle, run_dir)]
+    out = [bf, action_type(seq, ph, angle), shin_lead(ph, arm, angle, run_dir), trunk_lean(ph, arm, angle, run_dir), weight_transfer(ph, arm, angle)]
     imgs = []
     for d in out:
         dr = d.pop("_draw", None)

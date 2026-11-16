@@ -37,7 +37,7 @@ async def create_academy(body: AcademyIn, request: Request, u=Depends(current_us
         raise HTTPException(403, "Only coach or academy accounts can create an academy.")
     aid = uid()
     slug = re.sub(r"[^a-z0-9]+", "-", body.name.lower()).strip("-") + "-" + aid[:5]
-    await db.academies.insert_one({"id": aid, "slug": slug, **body.model_dump(), "owner_id": u["id"], "created_at": now()})
+    await db.academies.insert_one({"id": aid, "slug": slug, "code": await new_code(), **body.model_dump(), "owner_id": u["id"], "created_at": now()})
     await db.academy_memberships.insert_one({"id": uid(), "academy_id": aid, "user_id": u["id"], "role": "academy_admin", "status": "active", "created_at": now()})
     await audit(u["id"], "academy.created", aid, request=request)
     return {"id": aid}
@@ -59,6 +59,8 @@ async def get_academy(aid: str, u=Depends(current_user)):
     a = await db.academies.find_one({"id": aid}, {"_id": 0})
     if not a:
         raise HTTPException(404, "Academy not found.")
+    if m["role"] != "academy_admin":
+        a.pop("commission", None)
     return {**a, "my_role": m["role"]}
 
 
@@ -125,7 +127,7 @@ async def members(aid: str, u=Depends(current_user)):
     out = []
     for x in ms:
         usr = users.get(x["user_id"], {})
-        row = {**x, "full_name": usr.get("full_name"), "email": usr.get("email") if m["role"] == "academy_admin" else None,
+        row = {**x, "nickname": x.get("nickname"), "full_name": usr.get("full_name"), "email": usr.get("email") if m["role"] == "academy_admin" else None,
                "playing_role": (usr.get("profile") or {}).get("playing_role")}
         if x["role"] == "player":
             row["coaches"] = [a["coach_id"] for a in assigns if a["player_id"] == x["user_id"]]
@@ -267,3 +269,154 @@ async def export_csv(aid: str, u=Depends(current_user)):
     for m in data["members"]:
         w.writerow([m.get("full_name"), m["role"], m.get("playing_role") or "", bool(m.get("share_reports")), m.get("analyses", ""), m.get("last_analysis") or ""])
     return Response(buf.getvalue(), media_type="text/csv", headers={"Content-Disposition": "attachment; filename=academy-players.csv"})
+
+
+# ---------- academy codes, join requests, nicknames, leaderboard, referral earnings ----------
+CODE_CHARS = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"
+
+
+async def new_code():
+    while True:
+        c = "".join(secrets.choice(CODE_CHARS) for _ in range(6))
+        if not await db.academies.find_one({"code": c}):
+            return c
+
+
+async def ensure_codes():
+    async for a in db.academies.find({"code": {"$exists": False}}, {"id": 1}):
+        await db.academies.update_one({"id": a["id"]}, {"$set": {"code": await new_code()}})
+
+
+async def academy_by_code(code):
+    c = re.sub(r"[^A-Z0-9]", "", (code or "").upper())
+    return await db.academies.find_one({"code": c}, {"_id": 0}) if len(c) == 6 else None
+
+
+@router.get("/academies-lookup")
+async def lookup(code: str, request: Request, u=Depends(current_user)):
+    from core import rate_limit
+    await rate_limit(f"aclookup:{u['id']}", 30, 600)
+    a = await academy_by_code(code)
+    if not a:
+        raise HTTPException(404, "No academy found with this code. Check the code with your academy.")
+    m = await db.academy_memberships.find_one({"academy_id": a["id"], "user_id": u["id"], "status": "active"})
+    req = await db.academy_join_requests.find_one({"academy_id": a["id"], "user_id": u["id"], "status": "pending"})
+    return {"id": a["id"], "name": a["name"], "city": a.get("city"), "description": a.get("description"), "is_member": bool(m), "request_pending": bool(req)}
+
+
+class JoinIn(BaseModel):
+    code: str = Field(min_length=4, max_length=12)
+    message: str = Field("", max_length=300)
+
+
+@router.post("/academies-join")
+async def join(body: JoinIn, request: Request, u=Depends(current_user)):
+    await flag_on()
+    if u["role"] not in ("player", "parent"):
+        raise HTTPException(403, "Only player accounts can request to join an academy.")
+    a = await academy_by_code(body.code)
+    if not a:
+        raise HTTPException(404, "No academy found with this code.")
+    if await db.academy_memberships.find_one({"academy_id": a["id"], "user_id": u["id"], "status": "active"}):
+        raise HTTPException(409, "You're already a member of this academy.")
+    if await db.academy_join_requests.find_one({"academy_id": a["id"], "user_id": u["id"], "status": "pending"}):
+        raise HTTPException(409, "Your request is already waiting for the academy's approval.")
+    await db.academy_join_requests.insert_one({"id": uid(), "academy_id": a["id"], "user_id": u["id"], "message": body.message, "status": "pending", "created_at": now()})
+    owner = await db.users.find_one({"id": a["owner_id"]})
+    if owner:
+        await send_email(owner["email"], "join_request", {"academy": a["name"], "player": u["full_name"], "link": f"{APP_URL}/app/academy"}, owner["id"])
+    await audit(u["id"], "academy.join_requested", a["id"], request=request)
+    return {"ok": True, "academy": a["name"]}
+
+
+@router.get("/academy-requests/mine")
+async def my_requests(u=Depends(current_user)):
+    rows = await db.academy_join_requests.find({"user_id": u["id"]}, {"_id": 0}).sort("created_at", -1).to_list(50)
+    names = {a["id"]: a["name"] for a in await db.academies.find({"id": {"$in": [r["academy_id"] for r in rows]}}, {"id": 1, "name": 1}).to_list(50)}
+    return [{**r, "academy_name": names.get(r["academy_id"])} for r in rows]
+
+
+@router.get("/academies/{aid}/requests")
+async def list_requests(aid: str, u=Depends(current_user)):
+    await membership(aid, u, ["academy_admin"])
+    rows = await db.academy_join_requests.find({"academy_id": aid, "status": "pending"}, {"_id": 0}).sort("created_at", 1).to_list(500)
+    us = {x["id"]: x for x in await db.users.find({"id": {"$in": [r["user_id"] for r in rows]}}, {"_id": 0, "id": 1, "full_name": 1, "email": 1, "profile": 1}).to_list(500)}
+    return [{**r, "full_name": us.get(r["user_id"], {}).get("full_name"), "email": us.get(r["user_id"], {}).get("email"),
+             "playing_role": (us.get(r["user_id"], {}).get("profile") or {}).get("playing_role")} for r in rows]
+
+
+class DecideIn(BaseModel):
+    approve: bool
+
+
+@router.post("/academies/{aid}/requests/{rid}")
+async def decide_request(aid: str, rid: str, body: DecideIn, request: Request, u=Depends(current_user)):
+    await membership(aid, u, ["academy_admin"])
+    r = await db.academy_join_requests.find_one_and_update({"id": rid, "academy_id": aid, "status": "pending"},
+                                                           {"$set": {"status": "approved" if body.approve else "rejected", "decided_at": now(), "decided_by": u["id"]}})
+    if not r:
+        raise HTTPException(404, "Request not found.")
+    player = await db.users.find_one({"id": r["user_id"]})
+    a = await db.academies.find_one({"id": aid})
+    if body.approve and player:
+        share = not (is_minor(player) and not (player.get("guardian") or {}).get("consent_at"))
+        await db.academy_memberships.update_one({"academy_id": aid, "user_id": player["id"]},
+                                                {"$set": {"role": "player", "status": "active", "share_reports": share, "joined_via": "code", "consent_updated_at": now()},
+                                                 "$setOnInsert": {"id": uid(), "created_at": now()}}, upsert=True)
+        if not player.get("referred_academy_id"):
+            await db.users.update_one({"id": player["id"]}, {"$set": {"referred_academy_id": aid, "referred_at": now()}})
+    if player:
+        await send_email(player["email"], "join_decision", {"academy": a["name"], "decision": "approved" if body.approve else "declined"}, player["id"])
+    await audit(u["id"], "academy.join_" + ("approved" if body.approve else "rejected"), aid, {"user_id": r["user_id"]}, request)
+    return {"ok": True}
+
+
+class NickIn(BaseModel):
+    nickname: str = Field("", max_length=40)
+
+
+@router.patch("/academies/{aid}/members/{user_id}/nickname")
+async def nickname(aid: str, user_id: str, body: NickIn, u=Depends(current_user)):
+    await coach_can_see(aid, u, user_id)
+    await db.academy_memberships.update_one({"academy_id": aid, "user_id": user_id}, {"$set": {"nickname": body.nickname.strip() or None}})
+    return {"ok": True}
+
+
+@router.get("/academies/{aid}/leaderboard")
+async def leaderboard(aid: str, type: str = "batting", u=Depends(current_user)):
+    import report_view
+    await membership(aid, u)
+    if type not in ("batting", "bowling"):
+        raise HTTPException(422, "Type must be batting or bowling.")
+    ms = await db.academy_memberships.find({"academy_id": aid, "role": "player", "status": "active", "share_reports": True}, {"_id": 0}).to_list(2000)
+    names = {x["id"]: x["full_name"] for x in await db.users.find({"id": {"$in": [m["user_id"] for m in ms]}}, {"id": 1, "full_name": 1}).to_list(2000)}
+    rows = []
+    for m in ms:
+        rep = await db.analysis_reports.find_one({"user_id": m["user_id"], "analysis_type": type}, {"_id": 0, "job_id": 1, "created_at": 1, "biomech.score": 1}, sort=[("created_at", -1)])
+        if not rep:
+            continue
+        sc = report_view.list_summary(rep)
+        if sc["value"] is None:
+            continue
+        rows.append({"user_id": m["user_id"], "name": m.get("nickname") or names.get(m["user_id"]), "nickname": m.get("nickname"),
+                     "score": sc["value"], "provisional": sc["status"] != "complete", "analysed_at": rep["created_at"], "job_id": rep["job_id"]})
+    rows.sort(key=lambda r: -r["score"])
+    for i, r in enumerate(rows):
+        r["rank"] = i + 1
+    me = await db.academy_memberships.find_one({"academy_id": aid, "user_id": u["id"]})
+    if (me or {}).get("role") == "player":
+        for r in rows:
+            r.pop("job_id")
+    return rows
+
+
+@router.get("/academies/{aid}/earnings")
+async def earnings(aid: str, u=Depends(current_user)):
+    await membership(aid, u, ["academy_admin"])
+    a = await db.academies.find_one({"id": aid}, {"_id": 0})
+    cfg = a.get("commission") or (await get_settings())["commission"]
+    rows = await db.commissions.find({"academy_id": aid}, {"_id": 0}).sort("created_at", -1).to_list(1000)
+    tot = lambda s: round(sum(r["amount_inr"] for r in rows if r["status"] == s), 2)
+    return {"code": a.get("code"), "referral_link": f"{APP_URL}/signup?ref={a.get('code')}", "commission": cfg,
+            "referred_students": await db.users.count_documents({"referred_academy_id": aid}),
+            "pending_inr": tot("pending"), "paid_inr": tot("paid"), "rows": rows}

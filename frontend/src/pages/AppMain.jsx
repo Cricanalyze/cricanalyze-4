@@ -15,6 +15,7 @@ import { useAuth, isStaff } from "@/context/AuthContext";
 import { PageHeader, Empty, Card, Badge, statusTone, Seo } from "@/components/Common";
 import { ReportBody } from "@/components/ReportBody";
 import { ShareButton } from "@/components/ShareButton";
+import { EmailReport } from "@/components/EmailReport";
 
 export const Dashboard = () => {
   const { user, ent } = useAuth();
@@ -90,6 +91,8 @@ export const Upload = () => {
   const [consent, setConsent] = useState(false);
   const [notes, setNotes] = useState("");
   const [shot, setShot] = useState("");
+  const [emailMode, setEmailMode] = useState("now");
+  const [emailAt, setEmailAt] = useState("");
   const [busy, setBusy] = useState(false);
   const [drag, setDrag] = useState(false);
   const key = useRef(crypto.randomUUID());
@@ -115,7 +118,7 @@ export const Upload = () => {
         const { data } = await api.post("/videos", fd, { onUploadProgress: (e) => setItems((s) => s.map((x, j) => j === i ? { ...x, progress: Math.round((e.loaded / (e.total || 1)) * 100) } : x)) });
         ids.push(data.id);
       }
-      const { data: job } = await api.post("/analyses", { analysis_type: type, video_ids: ids, consent, idempotency_key: key.current, notes: notes || null, shot_type: shot || null });
+      const { data: job } = await api.post("/analyses", { analysis_type: type, video_ids: ids, consent, idempotency_key: key.current, notes: notes || null, shot_type: shot || null, email_at: emailMode === "later" && emailAt ? emailAt : null });
       toast.success("Upload complete. Analysis queued.");
       nav(`/app/analyses/${job.id}`);
     } catch (e) {
@@ -152,9 +155,14 @@ export const Upload = () => {
           <FilmingChecklist type={type} />
           <Input placeholder={type === "batting" ? "Shot type (e.g. front-foot drive, defence, pull)" : "Delivery type (e.g. pace, off-spin)"} maxLength={60} value={shot} onChange={(e) => setShot(e.target.value)} data-testid="shot-type-input" />
           <Textarea placeholder="Optional note for the analyst (e.g. 'working on my cover drive')" maxLength={300} value={notes} onChange={(e) => setNotes(e.target.value)} data-testid="analysis-notes" />
+          <Card className="p-4" data-testid="email-option-card"><div className="text-sm font-medium mb-2">Email me the report (PDF + shareable link)</div>
+            <div className="flex gap-2">{[["now", "As soon as it's ready"], ["later", "At a time I choose"]].map(([v, l]) => <button key={v} type="button" onClick={() => setEmailMode(v)} data-testid={`email-mode-${v}`}
+              className={`flex-1 text-xs py-2 rounded-lg border ${emailMode === v ? "border-[#10B981] bg-[#10B981]/10" : "border-white/10"}`}>{l}</button>)}</div>
+            {emailMode === "later" && <Input type="datetime-local" className="mt-2" value={emailAt} onChange={(e) => setEmailAt(e.target.value)} data-testid="email-at-input" />}
+            <p className="text-[11px] text-slate-500 mt-1">Times are India time (IST).</p></Card>
           <label className="flex gap-2 items-start text-sm"><Checkbox checked={consent} onCheckedChange={(v) => setConsent(!!v)} data-testid="consent-checkbox" />
             <span>I own this video or have permission from everyone in it, and I consent to it being processed by a hosted AI provider to create my report.</span></label>
-          <Button className="w-full bg-[#10B981] hover:bg-[#059669] text-[#0B132B]" disabled={!items.length || !consent || busy} onClick={start} data-testid="start-analysis-btn">
+          <Button className="w-full bg-[#10B981] hover:bg-[#059669] text-[#0B132B]" disabled={!items.length || !consent || busy || (emailMode === "later" && !emailAt)} onClick={start} data-testid="start-analysis-btn">
             {busy ? "Uploading…" : staff ? "Start analysis (staff, no credit)" : "Start analysis · uses 1 credit"}</Button>
           <p className="text-xs text-slate-500">Credits are refunded automatically if the analysis fails.</p>
         </div>
@@ -263,6 +271,7 @@ export const Report = () => {
         {r && <><Button variant="secondary" onClick={() => download(`/analyses/${id}/pdf`, `cricanalyze-${id.slice(0, 8)}.pdf`).catch((e) => toast.error(e?.response?.status === 402 ? "PDF export isn't included in your plan." : "PDF failed"))} data-testid="report-pdf-btn"><FileDown size={16} className="mr-1" />PDF</Button>
           <Button variant="secondary" onClick={genPlan} data-testid="report-plan-btn"><Sparkles size={16} className="mr-1" />Training plan</Button>
           {isOwner && <ShareButton jobId={id} />}
+          {isOwner && <EmailReport jobId={id} />}
           <Button variant="secondary" asChild data-testid="report-coach-btn"><Link to="/app/coach"><MessageSquare size={16} className="mr-1" />Ask coach</Link></Button></>}
       </PageHeader>
       {!r && <Card className="mb-6" data-testid="job-status-card"><div className="flex items-center gap-3 mb-3"><Badge tone={statusTone(job.status)}>{job.status}</Badge><span className="text-sm text-slate-400">{job.stage?.replace(/_/g, " ")}</span></div>
