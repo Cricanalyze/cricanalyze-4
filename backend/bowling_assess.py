@@ -246,7 +246,7 @@ def trunk_lean(ph, arm, angle, run_dir):
     return d
 
 
-METHOD["weight_transfer"] = ("Hip centre position along the line from the back ankle (at back-foot contact) to the front ankle (at front-foot contact): "
+METHOD["weight_transfer"] = ("Hip centre position along the line between the back and front ankles at front-foot contact (front = the ankle further along the run-up): "
                              "0% = over the back foot, 100% = over the front foot, above 100% = past the front foot. Checked at back-foot contact, front-foot contact, release and "
                              "follow-through. Hip speed = hip-centre travel between the two foot contacts, in torso lengths per second. Head position = nose vs front knee at release. Side-on camera, 2D.")
 NAMES["weight_transfer"] = "Weight transfer (back foot → front foot)"
@@ -261,11 +261,14 @@ def weight_transfer(ph, arm, angle):
     if not b or not q or not arm:
         d["reason"] = "Both foot contacts must be identified to measure weight transfer."
         return d
-    fr, bk = ("r", "l") if arm == "l_wri" else ("l", "r")
-    ba, fa = Pk(b["frame"], f"{bk}_ank"), Pk(q["frame"], f"{fr}_ank")
-    if not ba or not fa or abs(fa[0] - ba[0]) < 0.3 * (pp.torso(q["frame"]) or 1e9):
-        d["reason"] = "The back and front ankles weren't clear enough at the foot contacts."
+    fr = "r" if arm == "l_wri" else "l"
+    qf, bf_ = q["frame"], b["frame"]
+    la, ra, h0, h1 = Pk(qf, "l_ank"), Pk(qf, "r_ank"), _mid(bf_, "l_hip", "r_hip"), _mid(qf, "l_hip", "r_hip")
+    if not (la and ra and h0 and h1) or abs(la[0] - ra[0]) < 0.3 * (pp.torso(qf) or 1e9):
+        d["reason"] = "Both ankles weren't clear enough at front-foot contact to set the base of the stride."
         return d
+    dirn = 1 if h1[0] >= h0[0] else -1
+    fa, ba = (la, ra) if (la[0] - ra[0]) * dirn > 0 else (ra, la)
     rows, vals = [], {}
     for key, label in (("back_foot_contact", "Back-foot contact"), ("front_foot_contact", "Front-foot contact"), ("release", "Release"), ("_follow_through", "Follow-through")):
         p = ph.get(key)

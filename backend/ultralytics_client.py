@@ -41,11 +41,16 @@ def predict(img, task="detect", conf=0.25, imgsz=640):
     jpg = cv2.imencode(".jpg", img, [cv2.IMWRITE_JPEG_QUALITY, 90])[1].tobytes()
     data = {"conf": str(conf), "iou": "0.7", "imgsz": str(imgsz), "normalize": "false"}
     last = "Ultralytics API key is not configured."
-    for attempt in range(3):
+    for attempt in range(6):
         keys = key_pool.ordered("ultralytics")
         if not keys:
             raise UltralyticsError(last)
+        waits = [key_pool.cooling_until(e["id"]) for e in keys]
+        if all(waits):
+            time.sleep(min(30, max(1, min(waits) - time.time())))
         for e in keys:
+            if attempt < 5 and key_pool.cooling_until(e["id"]) and len(keys) > 1 and not all(waits):
+                continue
             _wait(e["id"])
             try:
                 r = requests.post(_url(task, e), headers={"Authorization": f"Bearer {e['key']}"}, data=data,
@@ -69,7 +74,6 @@ def predict(img, task="detect", conf=0.25, imgsz=640):
             key_pool.mark_ok(e)
             imgs = r.json().get("images") or [{}]
             return imgs[0].get("results") or []
-        time.sleep(5)
     raise UltralyticsError(last)
 
 

@@ -5,14 +5,16 @@ import { Logo } from "@/components/Common";
 import { useAuth, isStaff, isEditor } from "@/context/AuthContext";
 import { Button } from "@/components/ui/button";
 import { ApprovalGate, needsApproval } from "@/components/ApprovalGate";
+import { useReveal } from "@/components/useReveal";
 
 const NAV = [["Features", "/features"], ["How it works", "/how-it-works"], ["Pricing", "/pricing"], ["Blog", "/blog"], ["About", "/about"]];
 
 export const PublicLayout = () => {
   const { user } = useAuth();
   const [open, setOpen] = useState(false);
+  useReveal();
   return (
-    <div className="min-h-screen flex flex-col">
+    <div className="min-h-screen flex flex-col relative isolate">
       <header className="sticky top-0 z-40 backdrop-blur-xl bg-[#070D1E]/80 border-b border-white/5">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
           <Logo />

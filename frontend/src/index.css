@@ -58,3 +58,15 @@
 .prose-blog td, .prose-blog th { border: 1px solid #334155; padding: 0.5rem; }
 .ProseMirror { min-height: 320px; outline: none; }
 .ProseMirror p.is-editor-empty:first-child::before { content: attr(data-placeholder); color: #64748b; float: left; height: 0; pointer-events: none; }
+.scene-fade { animation: sceneIn 1.2s ease both; }
+@keyframes sceneIn { from { opacity: 0; } to { opacity: 1; } }
+.tilt-3d { transition: transform 0.25s cubic-bezier(.2,.8,.2,1); transform-style: preserve-3d; will-change: transform; position: relative; }
+.tilt-3d::after { content: ""; position: absolute; inset: 0; border-radius: inherit; pointer-events: none; opacity: 0; transition: opacity 0.25s;
+  background: radial-gradient(400px circle at var(--gx, 50%) var(--gy, 50%), rgba(95, 215, 239, 0.12), transparent 45%); }
+.tilt-3d:hover::after { opacity: 1; }
+.depth-pop { transform: translateZ(28px); }
+.reveal-3d { opacity: 0; transform: perspective(900px) rotateX(14deg) translateY(30px); transition: opacity 0.7s ease, transform 0.7s cubic-bezier(.2,.8,.2,1); }
+.reveal-3d.in { opacity: 1; transform: none; }
+.hero-float { animation: heroFloat 6s ease-in-out infinite; }
+@keyframes heroFloat { 0%, 100% { transform: perspective(900px) rotateY(-12deg) rotateX(6deg) translateY(0); } 50% { transform: perspective(900px) rotateY(-8deg) rotateX(3deg) translateY(-12px); } }
+@media (prefers-reduced-motion: reduce) { .hero-float, .scene-fade { animation: none; } .reveal-3d { opacity: 1; transform: none; } }
