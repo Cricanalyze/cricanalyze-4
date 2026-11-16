@@ -9,7 +9,7 @@ import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/
 import { api, errMsg, inr, SITE } from "@/lib/api";
 import { Seo, Card, Badge } from "@/components/Common";
 import { Tilt, HeroBatter } from "@/components/Fx3D";
-import { SampleReport, Measures, FilmingGuide, AcademySection } from "@/pages/HomeSections";
+import { SampleReport, Measures, FilmingGuide, AcademySection, Journey, Marquee3D } from "@/pages/HomeSections";
 import { useAuth } from "@/context/AuthContext";
 import { PostCard } from "@/pages/Blog";
 
@@ -48,10 +48,12 @@ export const Home = () => {
           <div className="lg:col-span-6 relative fade-up" style={{ animationDelay: ".15s" }}><HeroBatter /></div>
         </div>
       </section>
+      <Marquee3D />
+      <Journey />
       <SampleReport />
       <Measures />
       <Section><H2 eyebrow="What it analyses" title="Batting and bowling, explained clearly" desc="Built around what a single phone camera can reliably show." />
-        <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-5">{FEATURES.map(([I, t, d], i) => <Tilt key={t} className="glass rounded-xl p-5 reveal-3d hover:border-[#00B4D8]/40" style={{ transitionDelay: `${i * 60}ms` }} data-testid={`feature-card-${i}`}><I className="text-[#00B4D8] mb-4 depth-pop" /><h3 className="font-semibold text-lg mb-2 depth-pop">{t}</h3><p className="text-sm text-slate-400 leading-relaxed">{d}</p></Tilt>)}</div>
+        <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-5 s3d-tilt" data-s3d>{FEATURES.map(([I, t, d], i) => <Tilt key={t} className="glass rounded-xl p-5 reveal-3d hover:border-[#00B4D8]/40" style={{ transitionDelay: `${i * 60}ms` }} data-testid={`feature-card-${i}`}><I className="text-[#00B4D8] mb-4 depth-pop" /><h3 className="font-semibold text-lg mb-2 depth-pop">{t}</h3><p className="text-sm text-slate-400 leading-relaxed">{d}</p></Tilt>)}</div>
       </Section>
       <Section className="!pt-0"><H2 eyebrow="Who it's for" title="One platform, four kinds of cricketers" />
         <div className="grid md:grid-cols-4 gap-px bg-white/5 rounded-2xl overflow-hidden">{[["Players", "Get specific, evidence-linked feedback and a plan for your next sessions."], ["Parents", "Support young players with guardian consent and privacy controls built in."], ["Coaches", "Review assigned players' shared reports and add your own feedback."], ["Academies", "Manage batches, coaches and progress in an isolated workspace."]].map(([t, d]) => <div key={t} className="bg-[#0B132B]/85 backdrop-blur-xl p-7 reveal-3d"><h3 className="font-display font-bold text-xl mb-2">{t}</h3><p className="text-sm text-slate-400">{d}</p></div>)}</div>

@@ -2,7 +2,11 @@ import { lazy, Suspense, useEffect, useRef, useState } from "react";
 import { Move3d } from "lucide-react";
 
 const Batter3D = lazy(() => import("@/components/Batter3D"));
-const webgl = () => { try { const c = document.createElement("canvas"); return !!(c.getContext("webgl2") || c.getContext("webgl")); } catch { return false; } };
+const Ball3DLazy = lazy(() => import("@/components/Ball3D"));
+
+export const Ball3D = (p) => { const [ok] = useState(webgl); return ok ? <Suspense fallback={null}><Ball3DLazy {...p} /></Suspense> : null; };
+function webgl() { return _webgl(); }
+const _webgl = () => { try { const c = document.createElement("canvas"); return !!(c.getContext("webgl2") || c.getContext("webgl")); } catch { return false; } };
 
 // Interactive 3D batter (loaded after first paint so the page text appears instantly).
 export const HeroBatter = () => {
@@ -49,4 +53,21 @@ export const Tilt = ({ children, className = "", max = 9, ...p }) => {
   };
   const leave = () => { if (r.current) r.current.style.transform = ""; };
   return <div ref={r} onPointerMove={move} onPointerLeave={leave} className={`tilt-3d ${className}`} {...p}>{children}</div>;
+};
+
+export const CountUp = ({ to, ms = 1400 }) => {
+  const [v, setV] = useState(0);
+  const ref = useRef(null);
+  useEffect(() => {
+    const io = new IntersectionObserver(([e]) => {
+      if (!e.isIntersecting) return;
+      io.disconnect();
+      const t0 = performance.now();
+      const step = (t) => { const f = Math.min(1, (t - t0) / ms); setV(Math.round(to * (1 - (1 - f) ** 3))); if (f < 1) requestAnimationFrame(step); };
+      requestAnimationFrame(step);
+    });
+    io.observe(ref.current);
+    return () => io.disconnect();
+  }, [to, ms]);
+  return <span ref={ref}>{v}</span>;
 };

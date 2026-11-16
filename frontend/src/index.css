@@ -70,3 +70,17 @@
 .hero-float { animation: heroFloat 6s ease-in-out infinite; }
 @keyframes heroFloat { 0%, 100% { transform: perspective(900px) rotateY(-12deg) rotateX(6deg) translateY(0); } 50% { transform: perspective(900px) rotateY(-8deg) rotateX(3deg) translateY(-12px); } }
 @media (prefers-reduced-motion: reduce) { .hero-float, .scene-fade { animation: none; } .reveal-3d { opacity: 1; transform: none; } }
+[data-s3d] { --p: 0.5; }
+.s3d-tilt { transform: perspective(1400px) rotateX(calc((0.5 - var(--p)) * 22deg)) scale(calc(0.94 + (0.5 - max(var(--p) - 0.5, 0.5 - var(--p))) * 0.12)); transform-origin: center; will-change: transform; }
+.s3d-up { transform: translate3d(0, calc((var(--p) - 0.5) * -90px), 0); will-change: transform; }
+.s3d-down { transform: translate3d(0, calc((var(--p) - 0.5) * 70px), 0); will-change: transform; }
+.s3d-spin { transform: perspective(900px) rotateY(calc(var(--p) * 360deg)) rotateX(calc((var(--p) - 0.5) * 30deg)); }
+.cyl-stage { perspective: 1600px; }
+.cyl { transform-style: preserve-3d; transform: translateZ(calc(var(--r) * -1)) rotateY(calc(var(--p) * -270deg)); transition: transform 0.08s linear; }
+.cyl > * { position: absolute; inset: 0; backface-visibility: hidden; transform: rotateY(calc(var(--i) * 90deg)) translateZ(var(--r)); }
+.fill { width: 0; transition: width 1.2s cubic-bezier(.2,.8,.2,1) 0.2s; }
+.in .fill, .fill.in { width: var(--w); }
+.marquee-3d { transform: perspective(800px) rotateX(18deg) rotateZ(-3deg); }
+.marquee-track { display: flex; width: max-content; animation: marquee 32s linear infinite; }
+@keyframes marquee { to { transform: translateX(-50%); } }
+@media (prefers-reduced-motion: reduce) { .s3d-tilt, .s3d-up, .s3d-down, .s3d-spin { transform: none; } .marquee-track { animation: none; } }
