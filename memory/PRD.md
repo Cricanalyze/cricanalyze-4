@@ -85,3 +85,7 @@ User request: always show Overall Technique Score XX/100 when >=1 valid measurem
 - Display score: score_engine.to_display maps raw 0–100 onto 70–100 (owner choice; raw kept in DB; not mentioned to players); applies to report, components, history list, timeline, progress, PDF
 - Share links: POST/DELETE/GET /api/analyses/{id}/share (owner/staff), public GET /api/public/reports/{token} and /pdf (PDF follows player's plan); page /r/:token shows full player view incl. video; never expires until turned off
 - Tests: tests/test_bowling_assess.py (6); real clips tests/media/bowl_side.mp4 (side-on, all 4 measured), bowl1.mp4 (front-on), keedy.mp4 (distant multi-person: unavailable)
+
+## 2026-06 Run as-is (branch `third`)
+- Cloned public repo, installed deps, configured backend/.env (APP_SECRET, APP_URL, DEV_EMAIL_OUTBOX=true, EMERGENT_LLM_KEY for storage). Smoke tests pass.
+- Missing keys: SMTP_*, RAZORPAY_KEY_ID/SECRET/WEBHOOK_SECRET, ANTHROPIC_API_KEY, ULTRALYTICS_API_KEY.
