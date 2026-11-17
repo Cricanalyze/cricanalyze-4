@@ -21,7 +21,7 @@ const glowTex = () => {
   return new THREE.CanvasTexture(c);
 };
 
-export default function Player3D({ kind, points, active, dots }) {
+export default function Player3D({ kind, points, active, dots, tags }) {
   const ref = useRef(null);
   const st = useRef({ kind, active });
   st.current = { kind, active };
@@ -82,6 +82,10 @@ export default function Player3D({ kind, points, active, dots }) {
         s.scale.set(sc, sc, sc);
         const d = dots.current[i];
         if (d) { tmp.copy(p).project(camera); d.style.transform = `translate(${(tmp.x * 0.5 + 0.5) * w()}px, ${(-tmp.y * 0.5 + 0.5) * h()}px) translate(-50%, -50%)`; }
+      });
+      [cur.la, cur.ra, tmp.set(1.5, 0.05, 0).clone()].forEach((p, i) => {
+        const d = tags.current[i];
+        if (d) { tmp.copy(p).add(i < 2 ? up.clone().multiplyScalar(-0.12) : up.clone().multiplyScalar(0)).project(camera); d.style.transform = `translate(${(tmp.x * 0.5 + 0.5) * w()}px, ${(-tmp.y * 0.5 + 0.5) * h()}px) translate(-50%, 0)`; }
       });
       controls.update();
       renderer.render(scene, camera);

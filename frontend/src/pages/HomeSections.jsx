@@ -44,8 +44,8 @@ export const SampleReport = () => (
 );
 
 const MEASURES = {
-  batting: [["Front knee bend at impact", "How much the front leg bends as the bat comes through."], ["Head over front foot", "Whether your head stays over the ball at contact — key for balance."], ["Weight transfer", "How far your weight moves from back foot to front foot through the shot."], ["Base width & stride", "How wide you stand and how long your stride is."], ["Shoulder & hip alignment", "Whether your body lines stay side-on through the stroke."], ["Backlift height & timing", "When and how high the hands go before the downswing."]],
-  bowling: [["Back-foot landing", "When and where the back foot lands compared with your hips."], ["Action type", "Side-on, semi-side-on, front-on or mixed — at back-foot contact."], ["Front shin at landing", "Whether the front leg braces or collapses at front-foot contact."], ["Trunk lean", "Forward, backward or sideways lean at the key moments."], ["Weight transfer & hip drive", "How far and how fast your hips drive over the front leg."], ["Release point", "Height of the bowling hand at release, frame by frame."]],
+  batting: [["Front knee bend at impact", "Your front leg is the one nearer the bowler. We check how much that knee bends as the bat hits the ball."], ["Head over front foot", "Is your head right above your front foot when you hit the ball? That keeps you balanced."], ["Weight transfer", "How much of your body weight moves from your back foot (near the stumps) onto your front foot as you play the shot."], ["Base width & stride", "How wide your feet are in your stance, and how big a step your front foot takes towards the ball."], ["Shoulder & hip alignment", "Whether your shoulders and hips stay pointing down the pitch through the shot."], ["Backlift height & timing", "How high your hands lift the bat before you swing, and when they start coming down."]],
+  bowling: [["Back-foot landing", "Your back foot is the one that lands first in your jump (right foot for most right-arm bowlers). We check when and where it lands."], ["Action type", "Which way your chest faces when the back foot lands — side-on, front-on, semi or mixed."], ["Front shin at landing", "Your front foot lands next, nearer the batter. We check if that leg stays strong and straight or bends and collapses."], ["Trunk lean", "How much your upper body leans forward, back or to the side as you bowl."], ["Weight transfer & hip drive", "How far and how fast your hips move from the back foot onto the front foot."], ["Release point", "How high your bowling hand is when the ball leaves it."]],
 };
 
 const AT = { batting: ["lk", "head", "lh+rh", "la+ra", "ls+rs", "lw+rw"], bowling: ["ra", "ls+rs", "lk+la", "neck", "lh+rh", "rw"] };
@@ -55,6 +55,7 @@ export const Measures = () => {
   const [k, setK] = useState("batting");
   const [a, setA] = useState(0);
   const dots = useRef([]);
+  const tags = useRef([]);
   const pick = (t) => { setK(t); setA(0); };
   const [title, desc] = MEASURES[k][a];
   return (
@@ -64,7 +65,9 @@ export const Measures = () => {
         className={`px-5 py-2 rounded-full text-sm capitalize border transition-colors ${k === t ? "border-[#10B981] bg-[#10B981]/10" : "border-white/10 text-slate-300 hover:border-white/30"}`}>{t}</button>)}</div>
       <div className="grid lg:grid-cols-5 gap-6 items-stretch">
         <div className="lg:col-span-3 relative h-[380px] sm:h-[520px] rounded-3xl border border-white/10 overflow-hidden bg-[radial-gradient(ellipse_at_50%_40%,rgba(16,185,129,0.18),rgba(7,13,30,0.95)_65%)]" data-testid="measures-3d">
-          <Player3D kind={k} points={POINTS} active={a} dots={dots} />
+          <Player3D kind={k} points={POINTS} active={a} dots={dots} tags={tags} />
+          {[["Front foot", "bg-amber-400 text-[#1a1203]"], ["Back foot", "bg-[#5fd7ef] text-[#03161b]"], [k === "batting" ? "Bowler this side" : "Batter this side", "bg-white/10 text-white border border-white/20"]].map(([l, c], i) =>
+            <span key={l} ref={(el) => (tags.current[i] = el)} style={{ transform: "translate(-999px, 0)" }} className={`absolute left-0 top-0 pointer-events-none whitespace-nowrap rounded-full px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide ${c}`} data-testid={`measure-tag-${i}`}>{l}</span>)}
           {MEASURES[k].map(([t], i) => <button key={k + t} ref={(el) => (dots.current[i] = el)} onClick={() => setA(i)} aria-label={t} style={{ transform: "translate(-999px, 0)" }} data-testid={`measure-point-${i}`}
             className={`absolute left-0 top-0 w-7 h-7 rounded-full grid place-items-center font-mono text-[10px] font-bold transition-colors ${a === i ? "bg-[#10B981] text-[#04130d] ring-4 ring-[#10B981]/30" : "bg-[#0B132B]/70 text-[#5fd7ef] border border-[#5fd7ef]/50 hover:bg-[#00B4D8]/30"}`}>{i + 1}</button>)}
           <div className="absolute bottom-3 left-3 text-[11px] text-slate-400 flex items-center gap-1 pointer-events-none"><Move3d size={14} />Drag to rotate · illustrative model</div>
@@ -138,15 +141,20 @@ export const Marquee3D = () => (
 );
 
 const SKEL = [[50, 14, 50, 30], [50, 30, 36, 46], [36, 46, 30, 60], [50, 30, 64, 44], [64, 44, 72, 30], [50, 30, 50, 58], [50, 58, 38, 76], [38, 76, 32, 94], [50, 58, 62, 76], [62, 76, 70, 94]];
-const LayerVideo = () => <div className="relative h-32 rounded-xl overflow-hidden"><img src="/images/hero.jpg" alt="" className="w-full h-full object-cover" loading="lazy" />
-  <span className="absolute bottom-2 left-2 font-mono text-[10px] bg-black/60 rounded px-1.5 py-0.5">00:03.20 · 60 fps</span><span className="absolute top-2 right-2 w-2 h-2 rounded-full bg-red-500 animate-pulse" /></div>;
-const LayerSkeleton = () => <svg viewBox="0 0 100 100" className="h-32 w-full"><circle cx="50" cy="9" r="6" fill="none" stroke="#5fd7ef" strokeWidth="1.5" />
-  {SKEL.map(([a, b, c, d], i) => <line key={i} x1={a} y1={b} x2={c} y2={d} stroke="#10B981" strokeWidth="2" strokeLinecap="round" />)}
-  {SKEL.map(([, , c, d], i) => <circle key={i} cx={c} cy={d} r="2.2" fill="#5fd7ef" />)}<text x="74" y="60" fill="#F59E0B" fontSize="6" fontFamily="monospace">152°</text></svg>;
-const LayerNumbers = () => <div className="space-y-2.5">{[["Front knee", "152°", 76], ["Weight on front foot", "78%", 78], ["Head over front foot", "0.06", 90], ["Shin brace", "19°", 64]].map(([l, v, w]) => <div key={l}>
-  <div className="flex justify-between text-[11px] mb-1"><span className="text-slate-300">{l}</span><span className="font-mono">{v}</span></div><div className="h-1.5 bg-white/10 rounded"><div className="h-full rounded bg-[#10B981]" style={{ width: `${w}%` }} /></div></div>)}</div>;
-const LayerReport = () => <div className="flex gap-4 items-center"><div className="w-20 h-20 rounded-full border-[6px] border-[#10B981] grid place-items-center shrink-0"><div className="text-center leading-none"><div className="text-2xl font-extrabold">74</div><div className="text-[9px] text-slate-300">/100</div></div></div>
-  <ul className="text-[11px] space-y-1.5 text-slate-200"><li>• Stride drill 10 × 3</li><li>• Head-over-ball feeds</li><li>• Next upload in 7 days</li><li className="text-[#10B981]">+6 since last report</li></ul></div>;
+const LayerVideo = () => <div className="relative h-32 rounded-xl overflow-hidden"><img src="/images/hero.jpg" alt="" className="w-full h-full object-cover lv-zoom" loading="lazy" />
+  <span className="lv-scan absolute inset-y-0 w-10 bg-gradient-to-r from-transparent via-[#5fd7ef]/50 to-transparent" />
+  <span className="absolute bottom-2 left-2 font-mono text-[10px] bg-black/60 rounded px-1.5 py-0.5">● REC · 60 fps</span><span className="absolute top-2 right-2 w-2 h-2 rounded-full bg-red-500 animate-pulse" />
+  <span className="absolute bottom-0 left-0 h-1 bg-[#10B981] lv-progress" /></div>;
+const LayerSkeleton = () => <svg viewBox="0 0 100 100" className="h-32 w-full"><circle cx="50" cy="9" r="6" fill="none" stroke="#5fd7ef" strokeWidth="1.5" className="ls-draw" pathLength="1" />
+  {SKEL.map(([a, b, c, d], i) => <line key={i} x1={a} y1={b} x2={c} y2={d} stroke="#10B981" strokeWidth="2" strokeLinecap="round" pathLength="1" className="ls-draw" style={{ animationDelay: `${i * 0.12}s` }} />)}
+  {SKEL.map(([, , c, d], i) => <circle key={i} cx={c} cy={d} r="2.2" fill="#5fd7ef" className="ls-pop" style={{ animationDelay: `${0.3 + i * 0.12}s`, }} />)}
+  <text x="70" y="62" fill="#F59E0B" fontSize="6" fontFamily="monospace" className="ls-pop" style={{ animationDelay: "1.6s" }}>knee 152°</text></svg>;
+const LayerNumbers = () => <div className="space-y-2.5">{[["Front knee", "152°", 76], ["Weight on front foot", "78%", 78], ["Head over front foot", "0.06", 90], ["Shin brace", "19°", 64]].map(([l, v, w], i) => <div key={l}>
+  <div className="flex justify-between text-[11px] mb-1"><span className="text-slate-300">{l}</span><span className="font-mono ls-pop" style={{ animationDelay: `${0.6 + i * 0.25}s` }}>{v}</span></div><div className="h-1.5 bg-white/10 rounded overflow-hidden"><div className="h-full rounded bg-[#10B981] ln-grow" style={{ "--w": `${w}%`, animationDelay: `${i * 0.25}s` }} /></div></div>)}</div>;
+const LayerReport = () => <div className="flex gap-4 items-center"><div className="relative w-20 h-20 shrink-0"><svg viewBox="0 0 36 36" className="w-20 h-20 -rotate-90"><circle cx="18" cy="18" r="15.5" fill="none" stroke="rgba(255,255,255,.12)" strokeWidth="3.5" />
+    <circle cx="18" cy="18" r="15.5" fill="none" stroke="#10B981" strokeWidth="3.5" strokeLinecap="round" pathLength="100" className="lr-ring" /></svg>
+    <div className="absolute inset-0 grid place-items-center text-center leading-none"><div><div className="text-2xl font-extrabold">74</div><div className="text-[9px] text-slate-300">/100</div></div></div></div>
+  <ul className="text-[11px] space-y-1.5 text-slate-200">{["• Stride drill 10 × 3", "• Head-over-ball feeds", "• Next upload in 7 days"].map((t, i) => <li key={t} className="lr-item" style={{ animationDelay: `${0.8 + i * 0.3}s` }}>{t}</li>)}<li className="text-[#10B981] lr-item" style={{ animationDelay: "1.8s" }}>+6 since last report</li></ul></div>;
 
 const LayerTitle = ({ t, d, z }) => <div><div className="font-mono text-[10px] text-slate-300 mb-1">LAYER {z + 1}</div><div className="font-display font-bold text-xl">{t}</div><div className="text-xs text-slate-300">{d}</div></div>;
 

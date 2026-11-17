@@ -116,3 +116,22 @@
 .btn-3d:hover { transform: translateY(-3px); box-shadow: 0 9px 0 #047857, 0 18px 40px rgba(16,185,129,.45); }
 .btn-3d:active { transform: translateY(4px); box-shadow: 0 2px 0 #047857; }
 @media (prefers-reduced-motion: reduce) { .floor-grid, .glow-orb { animation: none; } }
+.lv-scan { animation: lvScan 2.4s linear infinite; }
+@keyframes lvScan { from { left: -15%; } to { left: 105%; } }
+.lv-progress { animation: lvProg 4s linear infinite; }
+@keyframes lvProg { from { width: 0; } to { width: 100%; } }
+.lv-zoom { animation: lvZoom 8s ease-in-out infinite alternate; }
+@keyframes lvZoom { to { transform: scale(1.12) translateX(-4%); } }
+.ls-draw { stroke-dasharray: 1; stroke-dashoffset: 1; animation: lsDraw 4s ease-out infinite; }
+@keyframes lsDraw { 0% { stroke-dashoffset: 1; } 25%, 85% { stroke-dashoffset: 0; } 100% { stroke-dashoffset: 1; } }
+.ls-pop { opacity: 0; transform-box: fill-box; transform-origin: center; animation: lsPop 4s ease-out infinite; }
+@keyframes lsPop { 0% { opacity: 0; transform: scale(0); } 15%, 85% { opacity: 1; transform: scale(1); } 100% { opacity: 0; } }
+.ln-grow { width: 0; animation: lnGrow 4s cubic-bezier(.2,.8,.2,1) infinite; }
+@keyframes lnGrow { 0% { width: 0; } 30%, 85% { width: var(--w); } 100% { width: 0; } }
+.lr-ring { stroke-dasharray: 100; stroke-dashoffset: 100; animation: lrRing 4s cubic-bezier(.2,.8,.2,1) infinite; }
+@keyframes lrRing { 0% { stroke-dashoffset: 100; } 35%, 85% { stroke-dashoffset: 26; } 100% { stroke-dashoffset: 100; } }
+.lr-item { opacity: 0; animation: lrItem 4s ease-out infinite; }
+@keyframes lrItem { 0% { opacity: 0; transform: translateX(-8px); } 12%, 85% { opacity: 1; transform: none; } 100% { opacity: 0; } }
+#preloader { position: fixed; inset: 0; z-index: 9999; display: grid; place-items: center; background: #070D1E; transition: opacity .45s ease, visibility .45s; }
+#preloader.hide { opacity: 0; visibility: hidden; }
+@media (prefers-reduced-motion: reduce) { .lv-scan, .lv-progress, .lv-zoom, .ls-draw, .ls-pop, .ln-grow, .lr-ring, .lr-item { animation: none; opacity: 1; stroke-dashoffset: 0; } .ln-grow { width: var(--w); } .lr-ring { stroke-dashoffset: 26; } }
