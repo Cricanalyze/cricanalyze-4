@@ -89,14 +89,14 @@ const DemoVideo = ({ type, watched, onWatched }) => {
   const maxT = useRef(0);
   const onTime = (e) => {
     const v = e.target;
-    if (v.currentTime > maxT.current + 1) v.currentTime = maxT.current;
+    if (v.currentTime > maxT.current + 0.4) v.currentTime = maxT.current;
     else maxT.current = Math.max(maxT.current, v.currentTime);
     if (v.duration) setPct(Math.round((maxT.current / v.duration) * 100));
   };
   return <Card data-testid="demo-video-card"><div className="flex items-center justify-between mb-2"><h3 className="font-semibold capitalize">{type} demo</h3>
       {watched ? <Badge tone="teal">Watched</Badge> : <span className="text-xs text-slate-400" data-testid="demo-progress">{pct}% watched</span>}</div>
     <p className="text-sm text-slate-400 mb-3">{DEMOS[type][1]}. {watched ? "You can upload your video below." : "Watch the full demo to unlock the upload."}</p>
-    <video key={type} src={DEMOS[type][0]} controls autoPlay muted playsInline className="w-full rounded-lg bg-black aspect-video" onTimeUpdate={watched ? undefined : onTime} onSeeking={watched ? undefined : (e) => { if (e.target.currentTime > maxT.current + 1) e.target.currentTime = maxT.current; }} onRateChange={watched ? undefined : (e) => { e.target.playbackRate = 1; }} onEnded={(e) => { if (watched || maxT.current >= e.target.duration - 0.6) onWatched(); }} data-testid="demo-video" />
+    <video key={type} src={DEMOS[type][0]} controls autoPlay muted playsInline className="w-full rounded-lg bg-black aspect-video" onTimeUpdate={watched ? undefined : onTime} onSeeking={watched ? undefined : (e) => { if (e.target.currentTime > maxT.current + 0.3) e.target.currentTime = maxT.current; }} onRateChange={watched ? undefined : (e) => { e.target.playbackRate = 1; }} onEnded={(e) => { if (watched || maxT.current >= e.target.duration - 0.6) onWatched(); }} data-testid="demo-video" />
     {!watched && <Progress value={pct} className="mt-3" />}</Card>;
 };
 

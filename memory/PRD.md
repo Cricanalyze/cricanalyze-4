@@ -96,3 +96,14 @@ User request: always show Overall Technique Score XX/100 when >=1 valid measurem
 - Demo clips are generated placeholders (scripts/make_demo_videos.py); user will replace with real clips in frontend/public/demo/.
 - Backlog P1: verify bowling weight transfer, leaderboard with real scores, scheduled report emails.
 - Demo clips replaced with realistic AI 3D clips (fal.ai Kling v3 Pro, 4s, no text/audio, ~400KB each) via scripts/gen_ai_demo_videos.py.
+
+## 2026-11 Session updates
+- Demo videos: watermarked (faint centred logo); gate blocks seeking/rate changes, unlocks only after real playback.
+- Maintenance mode: backend/maintenance.py (middleware gate, 503 for non-staff; open: /api/auth/*, /api/maintenance, billing webhook). Admin > Maintenance tab (IST start/end, message). Frontend MaintenanceGate allows /login & /admin only. Toggle helper: backend/tests/maint_toggle.py on|off.
+- Homepage: animated 4-layer "Inside every report" (mobile = card list), 3D player "What we measure" with tap points + front/back foot tags (Player3D.jsx), hero HUD stacked on mobile, section/page transition animations, logo preloader (public/index.html).
+- PDF v4.0 redesign (report_pdf.py): navy hero cover + score ring, KPI tiles, takeaways cards, score breakdown bars, strengths/priority, biomech cards with weight-transfer ring.
+- Bowling weight transfer: score /10 + label; inconclusive when camera not side-on (hips barely move sideways). Verified on side-on clip (7.6/10).
+- About page (AboutPage.jsx): founders Adithya AG & Chandru H, Buddy Innovations and Technologies Private Limited → https://biatpl.com (also footer).
+## Backlog
+- P1: Verify leaderboard with real scores; scheduled report emails.
+- P2: shadcn date/time picker for maintenance; skip AuthContext calls during maintenance.

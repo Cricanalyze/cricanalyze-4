@@ -180,7 +180,7 @@ export const ExplodedReport = () => (
             <C /><LayerTitle t={t} d={d} z={z} /></div>)}
         </div>
         <div className="order-1 lg:order-2"><div className="eyebrow mb-3">Inside every report</div><h2 className="text-3xl sm:text-5xl font-bold leading-tight">Four layers of analysis,<br /><span className="text-[#00B4D8]">one clear answer.</span></h2>
-          <p className="text-slate-400 mt-4 max-w-md">Scroll to pull the report apart: your clip, the tracked skeleton, the measured numbers and the coaching you actually use.</p></div>
+          <p className="text-slate-400 mt-4 max-w-md"><span className="hidden lg:inline">Scroll to pull the report apart: </span><span className="lg:hidden">Every report has four layers: </span>your clip, the tracked skeleton, the measured numbers and the coaching you actually use.</p></div>
       </div>
     </div>
   </section>
