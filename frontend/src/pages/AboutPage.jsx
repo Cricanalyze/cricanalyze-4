@@ -33,7 +33,7 @@ export default function AboutPage() {
     <section className="max-w-7xl mx-auto px-4 sm:px-6 pt-16 md:pt-24 pb-10 grid lg:grid-cols-2 gap-12 items-center">
       <div className="reveal-3d"><div className="eyebrow mb-3">About CricAnalyze</div>
         <h1 className="font-display text-4xl sm:text-5xl lg:text-6xl font-extrabold leading-tight mb-6">Making good coaching feedback available to every cricketer</h1>
-        <p className="text-slate-300 text-base md:text-lg leading-relaxed mb-4">CricAnalyze is a product of <b>Buddy Innovations and Technologies Private Limited</b>. We help batters and bowlers understand their technique from a simple phone video, using AI body tracking and coaching that is clear about what it can and can't see.</p>
+        <p className="text-slate-300 text-base md:text-lg leading-relaxed mb-4">CricAnalyze is a product of <a href="https://biatpl.com" target="_blank" rel="noopener noreferrer" className="text-[#10B981] hover:underline" data-testid="about-company-link"><b>Buddy Innovations and Technologies Private Limited</b></a>. We help batters and bowlers understand their technique from a simple phone video, using AI body tracking and coaching that is clear about what it can and can't see.</p>
         <p className="text-slate-400 leading-relaxed">Most young players only get expert technique feedback now and then. We want every net session to count, whether you train at a top academy or in your backyard.</p></div>
       <div className="relative reveal-3d"><img src="/images/nets.jpg" alt="Cricket practice nets" className="rounded-3xl h-80 md:h-[420px] w-full object-cover" />
         <div className="absolute -bottom-6 left-6 right-6 glass rounded-2xl p-5 grid grid-cols-3 gap-3 text-center"><div><div className="font-display text-2xl font-bold text-[#10B981]">17</div><div className="text-xs text-slate-400">joints tracked</div></div>
@@ -56,8 +56,9 @@ export default function AboutPage() {
 
     <Block eyebrow="The company" title="Buddy Innovations and Technologies Private Limited">
       <div className="grid md:grid-cols-3 gap-4" data-testid="company-info">
-        {[[Building2, "Company", "Buddy Innovations and Technologies Private Limited"], [MapPin, "Based in", "India"], [Globe, "Website", "cricanalyze.in"]].map(([I, l, v]) =>
-          <div key={l} className="glass rounded-2xl p-6 flex gap-4 items-start reveal-3d"><I className="text-[#10B981] shrink-0" size={22} /><div><div className="text-xs text-slate-400 mb-1">{l}</div><div className="font-semibold">{v}</div></div></div>)}
+        {[[Building2, "Company", "Buddy Innovations and Technologies Private Limited", "https://biatpl.com"], [Globe, "Company website", "biatpl.com", "https://biatpl.com"], [MapPin, "Based in", "India"]].map(([I, l, v, href]) =>
+          <div key={l} className="glass rounded-2xl p-6 flex gap-4 items-start reveal-3d"><I className="text-[#10B981] shrink-0" size={22} /><div><div className="text-xs text-slate-400 mb-1">{l}</div>
+            {href ? <a href={href} target="_blank" rel="noopener noreferrer" className="font-semibold hover:text-[#10B981] transition-colors" data-testid={`company-link-${l.replace(/ /g, "-").toLowerCase()}`}>{v}</a> : <div className="font-semibold">{v}</div>}</div></div>)}
       </div>
       <p className="text-slate-400 text-sm mt-6 max-w-3xl">We don't publish fake testimonials or invented statistics, and we never present AI output as an official selection credential. CricAnalyze is a training aid, not a medical assessment.</p>
     </Block>
