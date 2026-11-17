@@ -10,6 +10,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { api, errMsg, fmtDate, inr } from "@/lib/api";
 import { PageHeader, Card, Badge, statusTone, Seo } from "@/components/Common";
 import { ApiKeys, Approvals, Commissions } from "@/components/AdminExtras";
+import { MaintenanceAdmin } from "@/components/Maintenance";
 
 const useLoad = (path, params) => {
   const [d, setD] = useState(null);
@@ -157,7 +158,7 @@ const Audit = () => { const [d] = useLoad("/admin/audit"); return d ? <T testid=
 const Academies = () => { const [d] = useLoad("/admin/academies"); return d ? <T head={["Name", "City", "Members", "Created"]} rows={d.map((a) => [a.name, a.city, a.members, fmtDate(a.created_at)])} /> : "Loading…"; };
 
 const TABS = [["overview", "Overview", Overview], ["users", "Users & roles", Users], ["approvals", "Coach approvals", Approvals], ["commissions", "Commissions", Commissions], ["apikeys", "API keys", ApiKeys], ["plans", "Plans", Plans], ["coupons", "Coupons", Coupons], ["payments", "Payments & credits", Payments], ["jobs", "Analysis jobs", Jobs],
-  ["integrations", "Integrations & email", Integrations], ["settings", "Flags & limits", SettingsTab], ["seo", "SEO", SeoTab], ["academies", "Academies", Academies], ["support", "Support", Support], ["audit", "Audit log", Audit]];
+  ["integrations", "Integrations & email", Integrations], ["settings", "Flags & limits", SettingsTab], ["seo", "SEO", SeoTab], ["academies", "Academies", Academies], ["support", "Support", Support], ["maintenance", "Maintenance", MaintenanceAdmin], ["audit", "Audit log", Audit]];
 
 export default function Admin() {
   return (<div><Seo title="Admin" path="/admin" noindex /><PageHeader eyebrow="Admin control center" title="Platform administration" desc="Sensitive changes require confirmation and are written to the audit log." />

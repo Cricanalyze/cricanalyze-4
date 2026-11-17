@@ -13,6 +13,7 @@ import { Coach, Training, Passport } from "@/pages/AppTools";
 import { Academy, Billing, Settings } from "@/pages/AppAccount";
 import Admin from "@/pages/Admin";
 import AdminBlog from "@/pages/AdminBlog";
+import { MaintenanceGate } from "@/components/Maintenance";
 
 const LEGAL = ["privacy-policy", "terms-and-conditions", "refund-policy", "cookie-policy", "disclaimer"];
 
@@ -21,6 +22,7 @@ function App() {
     <HelmetProvider>
       <BrowserRouter>
         <AuthProvider>
+          <MaintenanceGate>
           <Routes>
             <Route path="/r/:token" element={<SharedReport />} />
             <Route element={<PublicLayout />}>
@@ -60,6 +62,7 @@ function App() {
               <Route path="/admin/blog" element={<Protected check={isEditor}><AdminBlog /></Protected>} />
             </Route>
           </Routes>
+          </MaintenanceGate>
           <Toaster richColors position="top-right" />
         </AuthProvider>
       </BrowserRouter>

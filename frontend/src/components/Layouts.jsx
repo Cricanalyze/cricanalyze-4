@@ -1,4 +1,4 @@
-import { Link, NavLink, Outlet, useNavigate } from "react-router-dom";
+import { Link, NavLink, Outlet, useNavigate, useLocation } from "react-router-dom";
 import { useState } from "react";
 import { Menu, X, LayoutDashboard, Upload, History, MessageSquare, CalendarCheck, Building2, IdCard, CreditCard, Settings, Shield, LogOut, Newspaper } from "lucide-react";
 import { Logo } from "@/components/Common";
@@ -12,6 +12,7 @@ const NAV = [["Features", "/features"], ["How it works", "/how-it-works"], ["Pri
 export const PublicLayout = () => {
   const { user } = useAuth();
   const [open, setOpen] = useState(false);
+  const { pathname } = useLocation();
   useReveal();
   useScroll3D();
   return (
@@ -35,7 +36,7 @@ export const PublicLayout = () => {
           <Link to={user ? "/app" : "/login"} className="text-[#10B981] font-semibold">{user ? "Dashboard" : "Sign in / Sign up"}</Link>
         </div>}
       </header>
-      <main className="flex-1"><Outlet /></main>
+      <main className="flex-1 page-in" key={pathname}><Outlet /></main>
       <Footer />
     </div>
   );

@@ -2,10 +2,10 @@ import { useState } from "react";
 import { Link } from "react-router-dom";
 import { Smartphone, Sun, Ruler, Clapperboard, KeyRound, Trophy, IndianRupee, BadgeCheck, Footprints, ScanLine, Dumbbell, Mail } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Tilt, Ball3D, CountUp } from "@/components/Fx3D";
+import { Tilt, Ball3D, Bat3D, CountUp } from "@/components/Fx3D";
 import { Badge } from "@/components/Common";
 
-const Wrap = ({ children, className = "" }) => <section className={`max-w-7xl mx-auto px-4 sm:px-6 py-16 md:py-24 ${className}`}>{children}</section>;
+const Wrap = ({ children, className = "" }) => <section data-s3d className={`sec-3d max-w-7xl mx-auto px-4 sm:px-6 py-16 md:py-24 ${className}`}>{children}</section>;
 const Head = ({ eyebrow, title, desc }) => (<div className="mb-12 max-w-2xl reveal-3d"><div className="eyebrow mb-3">{eyebrow}</div><h2 className="text-3xl sm:text-4xl font-bold">{title}</h2>{desc && <p className="text-slate-400 mt-3">{desc}</p>}</div>);
 
 const PHASES = [["Setup", "Clear frame"], ["Backlift", "Clear frame"], ["Downswing", "Clear frame"], ["Impact", "Approximate timing"], ["Follow-through", "Clear frame"]];
@@ -48,14 +48,28 @@ const MEASURES = {
   bowling: [["Back-foot landing", "When and where the back foot lands compared with your hips."], ["Action type", "Side-on, semi-side-on, front-on or mixed — at back-foot contact."], ["Front shin at landing", "Whether the front leg braces or collapses at front-foot contact."], ["Trunk lean", "Forward, backward or sideways lean at the key moments."], ["Weight transfer & hip drive", "How far and how fast your hips drive over the front leg."], ["Release point", "Height of the bowling hand at release, frame by frame."]],
 };
 
+const KIT = {
+  batting: ["https://images.unsplash.com/photo-1593766832792-804353f52dbf?crop=entropy&cs=srgb&fm=jpg&q=80&w=900", "Batter driving a red ball", Bat3D],
+  bowling: ["https://images.pexels.com/photos/30401064/pexels-photo-30401064.jpeg?auto=compress&cs=tinysrgb&w=900", "Bowler gripping a red leather ball", Ball3D],
+};
+
+const KitVisual = ({ k }) => {
+  const [src, alt, Obj] = KIT[k];
+  return (<div key={k} className="kit-swap relative mb-8 rounded-2xl overflow-hidden border border-white/10 h-56 sm:h-72 bg-[#070D1E]" data-testid={`measures-visual-${k}`}>
+    <img src={src} alt={alt} className="absolute inset-y-0 left-0 w-full sm:w-3/5 h-full object-cover" style={{ maskImage: "linear-gradient(to right, #000 55%, transparent)", WebkitMaskImage: "linear-gradient(to right, #000 55%, transparent)" }} data-testid={`measures-photo-${k}`} />
+    <div className="absolute right-0 bottom-0 h-1/2 w-1/2 sm:top-0 sm:h-full sm:w-2/5"><Obj className="w-full h-full" /></div>
+    <div className="absolute left-4 bottom-4 glass rounded-full px-4 py-1.5 text-xs font-mono capitalize">{k} · {MEASURES[k].length} measurements</div>
+  </div>);
+};
+
 export const Measures = () => {
   const [k, setK] = useState("batting");
   return (
     <Wrap className="!pt-0">
-      <div className="flex flex-col md:flex-row md:items-end justify-between gap-6"><Head eyebrow="What we measure" title="Real body-tracking measurements, explained in plain words" desc="Each item shows the exact frame it came from. Anything the camera can't see clearly is marked unavailable — never guessed." />
-        <div data-s3d className="s3d-up hidden md:block"><Ball3D className="w-56 h-56 -mt-10 mb-6" /></div></div>
+      <Head eyebrow="What we measure" title="Real body-tracking measurements, explained in plain words" desc="Each item shows the exact frame it came from. Anything the camera can't see clearly is marked unavailable — never guessed." />
       <div className="flex gap-2 mb-6">{["batting", "bowling"].map((t) => <button key={t} onClick={() => setK(t)} data-testid={`measures-tab-${t}`}
         className={`px-5 py-2 rounded-full text-sm capitalize border transition-colors ${k === t ? "border-[#10B981] bg-[#10B981]/10" : "border-white/10 text-slate-300 hover:border-white/30"}`}>{t}</button>)}</div>
+      <KitVisual k={k} />
       <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">{MEASURES[k].map(([t, d], i) => <div key={k + t} data-s3d className={i % 3 === 1 ? "s3d-down" : "s3d-up"}><Tilt max={8} className="glass rounded-xl p-5 reveal-3d h-full" style={{ transitionDelay: `${i * 50}ms` }}>
         <div className="font-mono text-[11px] text-[#00B4D8] mb-2">{String(i + 1).padStart(2, "0")}</div><h3 className="font-semibold mb-1 depth-pop">{t}</h3><p className="text-sm text-slate-400">{d}</p></Tilt></div>)}</div>
     </Wrap>
@@ -118,11 +132,22 @@ export const Marquee3D = () => (
   </div>
 );
 
+const SKEL = [[50, 14, 50, 30], [50, 30, 36, 46], [36, 46, 30, 60], [50, 30, 64, 44], [64, 44, 72, 30], [50, 30, 50, 58], [50, 58, 38, 76], [38, 76, 32, 94], [50, 58, 62, 76], [62, 76, 70, 94]];
+const LayerVideo = () => <div className="relative h-32 rounded-xl overflow-hidden"><img src="/images/hero.jpg" alt="" className="w-full h-full object-cover" loading="lazy" />
+  <span className="absolute bottom-2 left-2 font-mono text-[10px] bg-black/60 rounded px-1.5 py-0.5">00:03.20 · 60 fps</span><span className="absolute top-2 right-2 w-2 h-2 rounded-full bg-red-500 animate-pulse" /></div>;
+const LayerSkeleton = () => <svg viewBox="0 0 100 100" className="h-32 w-full"><circle cx="50" cy="9" r="6" fill="none" stroke="#5fd7ef" strokeWidth="1.5" />
+  {SKEL.map(([a, b, c, d], i) => <line key={i} x1={a} y1={b} x2={c} y2={d} stroke="#10B981" strokeWidth="2" strokeLinecap="round" />)}
+  {SKEL.map(([, , c, d], i) => <circle key={i} cx={c} cy={d} r="2.2" fill="#5fd7ef" />)}<text x="74" y="60" fill="#F59E0B" fontSize="6" fontFamily="monospace">152°</text></svg>;
+const LayerNumbers = () => <div className="space-y-2.5">{[["Front knee", "152°", 76], ["Weight on front foot", "78%", 78], ["Head over front foot", "0.06", 90], ["Shin brace", "19°", 64]].map(([l, v, w]) => <div key={l}>
+  <div className="flex justify-between text-[11px] mb-1"><span className="text-slate-300">{l}</span><span className="font-mono">{v}</span></div><div className="h-1.5 bg-white/10 rounded"><div className="h-full rounded bg-[#10B981]" style={{ width: `${w}%` }} /></div></div>)}</div>;
+const LayerReport = () => <div className="flex gap-4 items-center"><div className="w-20 h-20 rounded-full border-[6px] border-[#10B981] grid place-items-center shrink-0"><div className="text-center leading-none"><div className="text-2xl font-extrabold">74</div><div className="text-[9px] text-slate-300">/100</div></div></div>
+  <ul className="text-[11px] space-y-1.5 text-slate-200"><li>• Stride drill 10 × 3</li><li>• Head-over-ball feeds</li><li>• Next upload in 7 days</li><li className="text-[#10B981]">+6 since last report</li></ul></div>;
+
 const LAYERS = [
-  ["Your video", "Original clip, frame-accurate", "from-slate-700/60 to-slate-900/60", 0],
-  ["Body tracking", "17 joints on every key frame", "from-[#00B4D8]/40 to-[#0B132B]/70", 1],
-  ["Measurements", "Knee, head, weight transfer, landings", "from-[#10B981]/40 to-[#0B132B]/70", 2],
-  ["Your report", "Score /100 · drills · weekly plan", "from-amber-500/40 to-[#0B132B]/70", 3],
+  ["Your video", "Original clip, frame-accurate", "from-slate-700/80 to-slate-900/80", 0, LayerVideo],
+  ["Body tracking", "17 joints on every key frame", "from-[#00B4D8]/40 to-[#0B132B]/60", 1, LayerSkeleton],
+  ["Measurements", "Knee, head, weight transfer, landings", "from-[#10B981]/40 to-[#0B132B]/60", 2, LayerNumbers],
+  ["Your report", "Score /100 · drills · weekly plan", "from-amber-500/40 to-[#0B132B]/60", 3, LayerReport],
 ];
 
 export const ExplodedReport = () => (
@@ -131,8 +156,8 @@ export const ExplodedReport = () => (
       <div className="max-w-7xl mx-auto px-4 sm:px-6 grid lg:grid-cols-2 gap-10 items-center w-full">
         <div className="stack-stage h-[340px] sm:h-[420px] relative order-2 lg:order-1">
           <div className="stack absolute left-1/2 top-1/2 w-[240px] sm:w-[300px] h-[300px] sm:h-[360px] -ml-[120px] sm:-ml-[150px] -mt-[150px] sm:-mt-[180px]">
-            {LAYERS.map(([t, d, g, z]) => <div key={t} className={`layer rounded-3xl border border-white/15 bg-gradient-to-br ${g} backdrop-blur-md p-6 flex flex-col justify-end shadow-2xl`} style={{ "--z": z }}>
-              <div className="font-mono text-[10px] text-slate-300 mb-1">LAYER {z + 1}</div><div className="font-display font-bold text-xl">{t}</div><div className="text-xs text-slate-300">{d}</div></div>)}
+            {LAYERS.map(([t, d, g, z, C]) => <div key={t} className={`layer rounded-3xl border border-white/15 bg-gradient-to-br ${g} backdrop-blur-[2px] p-5 sm:p-6 flex flex-col justify-between shadow-2xl`} style={{ "--z": z }} data-testid={`report-layer-${z}`}>
+              <C /><div><div className="font-mono text-[10px] text-slate-300 mb-1">LAYER {z + 1}</div><div className="font-display font-bold text-xl">{t}</div><div className="text-xs text-slate-300">{d}</div></div></div>)}
           </div>
         </div>
         <div className="order-1 lg:order-2"><div className="eyebrow mb-3">Inside every report</div><h2 className="text-3xl sm:text-5xl font-bold leading-tight">Four layers of analysis,<br /><span className="text-[#00B4D8]">one clear answer.</span></h2>

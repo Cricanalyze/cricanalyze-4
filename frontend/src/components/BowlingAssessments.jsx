@@ -11,6 +11,8 @@ const Item = ({ x }) => {
   return (
     <div className="rounded-lg border border-white/10 p-4 flex flex-col gap-3" data-testid={`assessment-${x.key}`}>
       <div className="flex justify-between gap-2 items-start"><div className="font-semibold text-sm">{x.name}</div><Badge tone={TONE[x.status]}>{x.status_label}</Badge></div>
+      {x.score != null && <div className="flex items-end gap-3" data-testid={`assessment-${x.key}-score`}><span className="text-4xl font-extrabold font-display text-[#10B981] leading-none">{x.score}<span className="text-base text-slate-400">/10</span></span>
+        <span className="text-xs text-slate-300 mb-1">{x.score_label}</span><div className="flex-1 h-2 bg-white/10 rounded mb-2"><div className="h-full rounded bg-gradient-to-r from-[#00B4D8] to-[#10B981]" style={{ width: `${x.score * 10}%` }} /></div></div>}
       <p className="text-sm text-slate-300" data-testid={`assessment-${x.key}-summary`}>{x.summary || x.reason}</p>
       {x.details?.length > 0 && <dl className="text-xs space-y-1">{x.details.map((d) => <div key={d.label} className="flex gap-2"><dt className="text-slate-500 shrink-0 w-40">{d.label}</dt><dd className="text-slate-200">{d.value}</dd></div>)}</dl>}
       {x.ai_note && <p className="text-xs text-amber-200" data-testid={`assessment-${x.key}-ai-note`}><span className="font-semibold">AI visual note (foot direction):</span> {x.ai_note}</p>}

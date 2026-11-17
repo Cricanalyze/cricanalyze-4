@@ -248,7 +248,8 @@ def trunk_lean(ph, arm, angle, run_dir):
 
 METHOD["weight_transfer"] = ("Hip centre position along the line between the back and front ankles at front-foot contact (front = the ankle further along the run-up): "
                              "0% = over the back foot, 100% = over the front foot, above 100% = past the front foot. Checked at back-foot contact, front-foot contact, release and "
-                             "follow-through. Hip speed = hip-centre travel between the two foot contacts, in torso lengths per second. Head position = nose vs front knee at release. Side-on camera, 2D.")
+                             "follow-through. Score /10: full marks when the hips are 90–115% of the way to the front foot at release, dropping as they stay back or over-shoot. "
+                             "Hip speed = hip-centre travel between the two foot contacts, in torso lengths per second. Head position = nose vs front knee at release. Side-on camera, 2D.")
 NAMES["weight_transfer"] = "Weight transfer (back foot → front foot)"
 
 
@@ -268,6 +269,10 @@ def weight_transfer(ph, arm, angle):
         d["reason"] = "Both ankles weren't clear enough at front-foot contact to set the base of the stride."
         return d
     dirn = 1 if h1[0] >= h0[0] else -1
+    if abs(h1[0] - h0[0]) < 0.2 * (pp.torso(qf) or 1e9):
+        d["status"] = "inconclusive"
+        d["reason"] = "The hips barely moved sideways between the foot contacts, so the camera doesn't look side-on. Film from side-on (10–15 m) for a weight transfer score."
+        return d
     fa, ba = (la, ra) if (la[0] - ra[0]) * dirn > 0 else (ra, la)
     rows, vals = [], {}
     for key, label in (("back_foot_contact", "Back-foot contact"), ("front_foot_contact", "Front-foot contact"), ("release", "Release"), ("_follow_through", "Follow-through")):
@@ -295,7 +300,11 @@ def weight_transfer(ph, arm, angle):
         off = (n[0] - k[0]) * (1 if fa[0] > ba[0] else -1) / pp.torso(f)
         rows.append({"label": "Head vs front knee at release", "value": "head over the front knee" if abs(off) < 0.15 else f"head {abs(off):.2f} torso lengths {'ahead of' if off > 0 else 'behind'} the front knee"})
     state = "driving well over the front leg" if v >= 85 else "still partly on the back foot" if v < 60 else "moving onto the front foot"
-    d["summary"] = f"At {'release' if 'release' in vals else 'front-foot contact'} the hips were {v}% of the way to the front foot — {state}."
+    score = 10.0 if 90 <= v <= 115 else max(0.0, 10 - (90 - v) / 6) if v < 90 else max(0.0, 10 - (v - 115) / 8)
+    d["score"] = round(score, 1)
+    d["score_label"] = "Excellent" if score >= 8.5 else "Good" if score >= 6.5 else "Needs work" if score >= 4 else "Poor"
+    rows.insert(0, {"label": "Weight transfer score", "value": f"{d['score']}/10 · {d['score_label']}"})
+    d["summary"] = f"Weight transfer score {d['score']}/10 ({d['score_label']}). At {'release' if 'release' in vals else 'front-foot contact'} the hips were {v}% of the way to the front foot — {state}."
     d["details"] = rows
     y = max(ba[1], fa[1])
     d["marks"].append(_mark(f, f"Weight {v}%", [((ba[0], y), (fa[0], y), "#E2E8F0"), ((hm[0], hm[1]), (hm[0], y), "#F59E0B")]))

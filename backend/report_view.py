@@ -186,7 +186,7 @@ ASSESS_STATUS = {"measured": "Measured", "inconclusive": "Inconclusive", "unavai
 def assessments_view(b):
     out = []
     for a in b.get("bowling_assessments") or []:
-        row = {k: a.get(k) for k in ("key", "name", "status", "summary", "details", "reason", "method", "t", "idx", "phase", "frame_asset_id", "overlay_asset_id", "frame_url", "overlay_url")}
+        row = {k: a.get(k) for k in ("key", "name", "status", "summary", "details", "reason", "method", "t", "idx", "phase", "frame_asset_id", "overlay_asset_id", "frame_url", "overlay_url", "score", "score_label")}
         row["status_label"] = ASSESS_STATUS.get(a["status"], a["status"])
         if a.get("ai_note"):
             row["ai_note"] = a["ai_note"]["text"]

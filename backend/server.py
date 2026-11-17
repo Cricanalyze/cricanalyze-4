@@ -4,10 +4,10 @@ from fastapi.responses import JSONResponse
 from fastapi.exceptions import RequestValidationError
 from starlette.middleware.cors import CORSMiddleware
 from core import db, log, init_storage, sanitize_error
-import auth_routes, analysis_routes, billing_routes, coach_routes, academy_routes, blog_routes, admin_routes, admin_extra_routes, key_pool
+import auth_routes, analysis_routes, billing_routes, coach_routes, academy_routes, blog_routes, admin_routes, admin_extra_routes, key_pool, maintenance
 
 app = FastAPI(title="CricAnalyze API", version="1.0", docs_url="/api/docs", openapi_url="/api/openapi.json")
-for m in (auth_routes, analysis_routes, billing_routes, coach_routes, academy_routes, blog_routes, admin_routes, admin_extra_routes):
+for m in (auth_routes, analysis_routes, billing_routes, coach_routes, academy_routes, blog_routes, admin_routes, admin_extra_routes, maintenance):
     app.include_router(m.router)
 
 CSRF_EXEMPT = {"/api/billing/webhook", "/api/auth/login", "/api/auth/signup", "/api/auth/verify-email", "/api/auth/login/otp/verify",
@@ -21,6 +21,9 @@ async def security(request: Request, call_next):
         tok = request.headers.get("x-csrf-token")
         if not tok or tok != request.cookies.get("ca_csrf"):
             return JSONResponse({"detail": "Security check failed. Please refresh the page and try again."}, status_code=403)
+    blocked = await maintenance.gate(request)
+    if blocked:
+        return blocked
     resp = await call_next(request)
     resp.headers["X-Content-Type-Options"] = "nosniff"
     resp.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"

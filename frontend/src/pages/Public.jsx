@@ -15,7 +15,7 @@ import { PostCard } from "@/pages/Blog";
 
 const ORG = { "@context": "https://schema.org", "@type": "Organization", name: "CricAnalyze", legalName: "Buddy Innovations and Technologies Pvt Ltd", url: SITE, email: "noreply@cricanalyze.in" };
 const WEBSITE = { "@context": "https://schema.org", "@type": "WebSite", name: "CricAnalyze", url: SITE };
-const Section = ({ children, className = "" }) => <section className={`max-w-7xl mx-auto px-4 sm:px-6 py-16 md:py-24 ${className}`}>{children}</section>;
+const Section = ({ children, className = "" }) => <section data-s3d className={`sec-3d max-w-7xl mx-auto px-4 sm:px-6 py-16 md:py-24 ${className}`}>{children}</section>;
 const H2 = ({ eyebrow, title, desc, h1 }) => { const H = h1 ? "h1" : "h2"; return (<div className="mb-12 max-w-2xl"><div className="eyebrow mb-3">{eyebrow}</div><H className="text-3xl sm:text-4xl font-bold">{title}</H>{desc && <p className="text-slate-400 mt-3">{desc}</p>}</div>); };
 
 const FEATURES = [

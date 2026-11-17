@@ -84,6 +84,12 @@
 .marquee-track { display: flex; width: max-content; animation: marquee 32s linear infinite; }
 @keyframes marquee { to { transform: translateX(-50%); } }
 @media (prefers-reduced-motion: reduce) { .s3d-tilt, .s3d-up, .s3d-down, .s3d-spin { transform: none; } .marquee-track { animation: none; } }
+.sec-3d { --e: max(0, 0.12 - var(--p)); opacity: calc(1 - var(--e) * 8); transform: perspective(1600px) rotateX(calc(var(--e) * 120deg)) translateY(calc(var(--e) * 400px)) scale(calc(1 - var(--e) * 0.5)); transform-origin: 50% 0; }
+.page-in { animation: pageIn 0.6s cubic-bezier(.2,.8,.2,1) both; }
+@keyframes pageIn { from { opacity: 0; transform: perspective(1400px) rotateX(8deg) translateY(40px) scale(0.98); } to { opacity: 1; transform: none; } }
+.kit-swap { animation: kitSwap 0.6s cubic-bezier(.2,.8,.2,1) both; }
+@keyframes kitSwap { from { opacity: 0; transform: perspective(1200px) rotateY(-18deg) scale(0.96); } to { opacity: 1; transform: none; } }
+@media (prefers-reduced-motion: reduce) { .sec-3d { opacity: 1; transform: none; } .page-in, .kit-swap { animation: none; } }
 .flip-word { display: inline-block; transform-origin: 50% 100%; animation: flipIn 0.9s cubic-bezier(.2,.8,.2,1) both; }
 @keyframes flipIn { from { opacity: 0; transform: perspective(600px) rotateX(-95deg) translateY(20px); } to { opacity: 1; transform: none; } }
 .scroll-bar { position: fixed; top: 0; left: 0; height: 3px; z-index: 60; width: calc(var(--sp, 0) * 100%); background: linear-gradient(90deg, #00B4D8, #10B981); }

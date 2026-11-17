@@ -3,8 +3,10 @@ import { Move3d } from "lucide-react";
 
 const Batter3D = lazy(() => import("@/components/Batter3D"));
 const Ball3DLazy = lazy(() => import("@/components/Ball3D"));
+const Bat3DLazy = lazy(() => import("@/components/Bat3D"));
 
 export const Ball3D = (p) => { const [ok] = useState(webgl); return ok ? <Suspense fallback={null}><Ball3DLazy {...p} /></Suspense> : null; };
+export const Bat3D = (p) => { const [ok] = useState(webgl); return ok ? <Suspense fallback={null}><Bat3DLazy {...p} /></Suspense> : null; };
 function webgl() { return _webgl(); }
 const _webgl = () => { try { const c = document.createElement("canvas"); return !!(c.getContext("webgl2") || c.getContext("webgl")); } catch { return false; } };
 
