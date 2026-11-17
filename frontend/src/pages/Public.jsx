@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import AboutPage from "@/pages/AboutPage";
 import { Link, useParams } from "react-router-dom";
 import { toast } from "sonner";
 import { ArrowRight, Video, Brain, FileText, LineChart, Users, ShieldCheck, Target, Layers, CheckCircle2, Lock } from "lucide-react";
@@ -142,12 +143,7 @@ export const HowItWorks = () => (<><Seo title="How it works" path="/how-it-works
 export const Pricing = () => (<><Seo title="Pricing" path="/pricing" description="Batting, bowling and all-rounder plans with analysis credits. Pay securely with Razorpay." />
   <Section><H2 h1 eyebrow="Pricing" title="Simple plans, clear limits" desc="Credits are reserved when an analysis starts and refunded automatically if processing fails." /><PlanGrid /></Section></>);
 
-export const About = () => (<><Seo title="About" path="/about" description="CricAnalyze is built by Buddy Innovations and Technologies Pvt Ltd." />
-  <Section><H2 h1 eyebrow="About" title="Built to make good coaching feedback more accessible" />
-    <div className="grid md:grid-cols-2 gap-10 items-center"><div className="space-y-4 text-slate-300 leading-relaxed"><p>CricAnalyze is a product of Buddy Innovations and Technologies Pvt Ltd. We help cricketers understand their technique using AI-assisted video review — with honest limits, clear evidence and practical drills.</p>
-      <p>We don't publish fake testimonials or invented statistics, and we never present AI output as an official selection credential.</p></div>
-      <img src="/images/nets.jpg" alt="Cricket practice nets" className="rounded-2xl h-80 w-full object-cover" /></div>
-  </Section></>);
+export const About = () => (<><Seo title="About" path="/about" description="CricAnalyze is built by Buddy Innovations and Technologies Private Limited, founded by Adithya AG and Chandru H." /><AboutPage /></>);
 
 const FAQS = [["What videos work best?", "Clips of any length filmed side-on or front-on, whole body visible, steady camera, good light, 480p or higher. For long clips we find the main shot or delivery and analyse it frame by frame. MP4, MOV and WEBM are supported."],
   ["Is the analysis done by a real AI model?", "Yes. Frames from your video are analysed by a hosted AI vision model. If the AI service is unavailable the job fails clearly and your credit is refunded — we never show made-up results."],
