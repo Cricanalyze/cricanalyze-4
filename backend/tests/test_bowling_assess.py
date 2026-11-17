@@ -38,7 +38,7 @@ def test_all_four_measured_side_on():
     seq, bfc, ffc, rel = seq_run()
     out, imgs = ba.assess(seq, phases(bfc, ffc, rel), "r_wri", "side_on", 30)
     st = {d["key"]: d for d in out}
-    assert [d["key"] for d in out] == ["back_foot_landing", "action_type", "shin_lead", "trunk_lean"]
+    assert [d["key"] for d in out] == ["back_foot_landing", "action_type", "shin_lead", "trunk_lean", "weight_transfer"]
     assert st["back_foot_landing"]["status"] == "measured" and st["back_foot_landing"]["idx"] == 20
     assert "to the nearest frame" in st["back_foot_landing"]["details"][0]["value"]
     assert any("Foot direction" == d["label"] and "Not measurable" in d["value"] for d in st["back_foot_landing"]["details"])
@@ -50,6 +50,12 @@ def test_all_four_measured_side_on():
     assert st["action_type"]["status"] == "measured" and "Side-on" in st["action_type"]["summary"]
     assert {k for k, _, _ in imgs} == {f"assess:{k}" for k in st}
     assert all(m["idx"] in (20, 24, 27) for d in out for m in d["marks"])
+    # weight transfer score /10
+    wt = st["weight_transfer"]
+    print("WT", wt.get("status"), wt.get("score"), wt.get("score_label"), wt.get("summary") or wt.get("reason"))
+    if wt["status"] == "measured":
+        assert 0 <= wt["score"] <= 10 and wt["score_label"] in ("Excellent", "Good", "Needs work", "Poor")
+        assert wt["details"][0]["label"] == "Weight transfer score" and "/10" in wt["details"][0]["value"]
 
 
 def test_shin_needs_side_on_and_action_inconclusive_for_other():
@@ -71,7 +77,7 @@ def test_hidden_back_ankle_marks_unavailable():
 def test_missing_phases_never_guess():
     seq, *_ = seq_run()
     out, imgs = ba.assess(seq, {}, None, "side_on", 30)
-    assert [d["status"] for d in out] == ["unavailable", "inconclusive", "unavailable", "unavailable"] and imgs == []
+    assert [d["status"] for d in out] == ["unavailable", "inconclusive", "unavailable", "unavailable", "unavailable"] and imgs == []
 
 
 def test_mixed_action_when_hips_and_shoulders_disagree():
