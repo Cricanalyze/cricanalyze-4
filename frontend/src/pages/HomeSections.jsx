@@ -1,8 +1,8 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { Link } from "react-router-dom";
-import { Smartphone, Sun, Ruler, Clapperboard, KeyRound, Trophy, IndianRupee, BadgeCheck, Footprints, ScanLine, Dumbbell, Mail } from "lucide-react";
+import { Smartphone, Sun, Ruler, Clapperboard, KeyRound, Trophy, IndianRupee, BadgeCheck, Footprints, ScanLine, Dumbbell, Mail, Move3d } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Tilt, Ball3D, Bat3D, CountUp } from "@/components/Fx3D";
+import { Tilt, Player3D, CountUp } from "@/components/Fx3D";
 import { Badge } from "@/components/Common";
 
 const Wrap = ({ children, className = "" }) => <section data-s3d className={`sec-3d max-w-7xl mx-auto px-4 sm:px-6 py-16 md:py-24 ${className}`}>{children}</section>;
@@ -48,30 +48,35 @@ const MEASURES = {
   bowling: [["Back-foot landing", "When and where the back foot lands compared with your hips."], ["Action type", "Side-on, semi-side-on, front-on or mixed — at back-foot contact."], ["Front shin at landing", "Whether the front leg braces or collapses at front-foot contact."], ["Trunk lean", "Forward, backward or sideways lean at the key moments."], ["Weight transfer & hip drive", "How far and how fast your hips drive over the front leg."], ["Release point", "Height of the bowling hand at release, frame by frame."]],
 };
 
-const KIT = {
-  batting: ["https://images.unsplash.com/photo-1593766832792-804353f52dbf?crop=entropy&cs=srgb&fm=jpg&q=80&w=900", "Batter driving a red ball", Bat3D],
-  bowling: ["https://images.pexels.com/photos/30401064/pexels-photo-30401064.jpeg?auto=compress&cs=tinysrgb&w=900", "Bowler gripping a red leather ball", Ball3D],
-};
-
-const KitVisual = ({ k }) => {
-  const [src, alt, Obj] = KIT[k];
-  return (<div key={k} className="kit-swap relative mb-8 rounded-2xl overflow-hidden border border-white/10 h-56 sm:h-72 bg-[#070D1E]" data-testid={`measures-visual-${k}`}>
-    <img src={src} alt={alt} className="absolute inset-y-0 left-0 w-full sm:w-3/5 h-full object-cover" style={{ maskImage: "linear-gradient(to right, #000 55%, transparent)", WebkitMaskImage: "linear-gradient(to right, #000 55%, transparent)" }} data-testid={`measures-photo-${k}`} />
-    <div className="absolute right-0 bottom-0 h-1/2 w-1/2 sm:top-0 sm:h-full sm:w-2/5"><Obj className="w-full h-full" /></div>
-    <div className="absolute left-4 bottom-4 glass rounded-full px-4 py-1.5 text-xs font-mono capitalize">{k} · {MEASURES[k].length} measurements</div>
-  </div>);
-};
+const AT = { batting: ["lk", "head", "lh+rh", "la+ra", "ls+rs", "lw+rw"], bowling: ["ra", "ls+rs", "lk+la", "neck", "lh+rh", "rw"] };
+const POINTS = Object.fromEntries(Object.entries(AT).map(([k, a]) => [k, a.map((at) => ({ at }))]));
 
 export const Measures = () => {
   const [k, setK] = useState("batting");
+  const [a, setA] = useState(0);
+  const dots = useRef([]);
+  const pick = (t) => { setK(t); setA(0); };
+  const [title, desc] = MEASURES[k][a];
   return (
     <Wrap className="!pt-0">
-      <Head eyebrow="What we measure" title="Real body-tracking measurements, explained in plain words" desc="Each item shows the exact frame it came from. Anything the camera can't see clearly is marked unavailable — never guessed." />
-      <div className="flex gap-2 mb-6">{["batting", "bowling"].map((t) => <button key={t} onClick={() => setK(t)} data-testid={`measures-tab-${t}`}
+      <Head eyebrow="What we measure" title="Real body-tracking measurements, explained in plain words" desc="Tap a glowing point on the player to see what we measure there. Anything the camera can't see clearly is marked unavailable — never guessed." />
+      <div className="flex gap-2 mb-6">{["batting", "bowling"].map((t) => <button key={t} onClick={() => pick(t)} data-testid={`measures-tab-${t}`}
         className={`px-5 py-2 rounded-full text-sm capitalize border transition-colors ${k === t ? "border-[#10B981] bg-[#10B981]/10" : "border-white/10 text-slate-300 hover:border-white/30"}`}>{t}</button>)}</div>
-      <KitVisual k={k} />
-      <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">{MEASURES[k].map(([t, d], i) => <div key={k + t} data-s3d className={i % 3 === 1 ? "s3d-down" : "s3d-up"}><Tilt max={8} className="glass rounded-xl p-5 reveal-3d h-full" style={{ transitionDelay: `${i * 50}ms` }}>
-        <div className="font-mono text-[11px] text-[#00B4D8] mb-2">{String(i + 1).padStart(2, "0")}</div><h3 className="font-semibold mb-1 depth-pop">{t}</h3><p className="text-sm text-slate-400">{d}</p></Tilt></div>)}</div>
+      <div className="grid lg:grid-cols-5 gap-6 items-stretch">
+        <div className="lg:col-span-3 relative h-[380px] sm:h-[520px] rounded-3xl border border-white/10 overflow-hidden bg-[radial-gradient(ellipse_at_50%_40%,rgba(16,185,129,0.18),rgba(7,13,30,0.95)_65%)]" data-testid="measures-3d">
+          <Player3D kind={k} points={POINTS} active={a} dots={dots} />
+          {MEASURES[k].map(([t], i) => <button key={k + t} ref={(el) => (dots.current[i] = el)} onClick={() => setA(i)} aria-label={t} style={{ transform: "translate(-999px, 0)" }} data-testid={`measure-point-${i}`}
+            className={`absolute left-0 top-0 w-7 h-7 rounded-full grid place-items-center font-mono text-[10px] font-bold transition-colors ${a === i ? "bg-[#10B981] text-[#04130d] ring-4 ring-[#10B981]/30" : "bg-[#0B132B]/70 text-[#5fd7ef] border border-[#5fd7ef]/50 hover:bg-[#00B4D8]/30"}`}>{i + 1}</button>)}
+          <div className="absolute bottom-3 left-3 text-[11px] text-slate-400 flex items-center gap-1 pointer-events-none"><Move3d size={14} />Drag to rotate · illustrative model</div>
+        </div>
+        <div className="lg:col-span-2 flex flex-col gap-3">
+          <div key={k + a} className="kit-swap glass rounded-2xl p-6 border-[#10B981]/40" data-testid="measure-detail">
+            <div className="font-mono text-xs text-[#10B981] mb-2">POINT {String(a + 1).padStart(2, "0")} · {k.toUpperCase()}</div>
+            <h3 className="font-display text-2xl font-bold mb-2">{title}</h3><p className="text-slate-300">{desc}</p></div>
+          <div className="grid grid-cols-2 gap-2">{MEASURES[k].map(([t], i) => <button key={k + t} onClick={() => setA(i)} data-testid={`measure-item-${i}`}
+            className={`text-left rounded-xl px-3 py-2.5 text-xs border transition-colors ${a === i ? "border-[#10B981] bg-[#10B981]/10 text-white" : "border-white/10 text-slate-400 hover:border-white/30"}`}><span className="font-mono text-[#5fd7ef] mr-1.5">{i + 1}</span>{t}</button>)}</div>
+        </div>
+      </div>
     </Wrap>
   );
 };
@@ -143,6 +148,8 @@ const LayerNumbers = () => <div className="space-y-2.5">{[["Front knee", "152°"
 const LayerReport = () => <div className="flex gap-4 items-center"><div className="w-20 h-20 rounded-full border-[6px] border-[#10B981] grid place-items-center shrink-0"><div className="text-center leading-none"><div className="text-2xl font-extrabold">74</div><div className="text-[9px] text-slate-300">/100</div></div></div>
   <ul className="text-[11px] space-y-1.5 text-slate-200"><li>• Stride drill 10 × 3</li><li>• Head-over-ball feeds</li><li>• Next upload in 7 days</li><li className="text-[#10B981]">+6 since last report</li></ul></div>;
 
+const LayerTitle = ({ t, d, z }) => <div><div className="font-mono text-[10px] text-slate-300 mb-1">LAYER {z + 1}</div><div className="font-display font-bold text-xl">{t}</div><div className="text-xs text-slate-300">{d}</div></div>;
+
 const LAYERS = [
   ["Your video", "Original clip, frame-accurate", "from-slate-700/80 to-slate-900/80", 0, LayerVideo],
   ["Body tracking", "17 joints on every key frame", "from-[#00B4D8]/40 to-[#0B132B]/60", 1, LayerSkeleton],
@@ -151,14 +158,18 @@ const LAYERS = [
 ];
 
 export const ExplodedReport = () => (
-  <section data-s3d="pin" className="relative h-[240vh]" data-testid="exploded-report">
-    <div className="sticky top-16 h-[calc(100vh-4rem)] flex items-center overflow-hidden">
+  <section data-s3d="pin" className="relative py-16 lg:py-0 lg:h-[240vh]" data-testid="exploded-report">
+    <div className="lg:sticky lg:top-16 lg:h-[calc(100vh-4rem)] flex items-center lg:overflow-hidden">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 grid lg:grid-cols-2 gap-10 items-center w-full">
-        <div className="stack-stage h-[340px] sm:h-[420px] relative order-2 lg:order-1">
-          <div className="stack absolute left-1/2 top-1/2 w-[240px] sm:w-[300px] h-[300px] sm:h-[360px] -ml-[120px] sm:-ml-[150px] -mt-[150px] sm:-mt-[180px]">
-            {LAYERS.map(([t, d, g, z, C]) => <div key={t} className={`layer rounded-3xl border border-white/15 bg-gradient-to-br ${g} backdrop-blur-[2px] p-5 sm:p-6 flex flex-col justify-between shadow-2xl`} style={{ "--z": z }} data-testid={`report-layer-${z}`}>
-              <C /><div><div className="font-mono text-[10px] text-slate-300 mb-1">LAYER {z + 1}</div><div className="font-display font-bold text-xl">{t}</div><div className="text-xs text-slate-300">{d}</div></div></div>)}
+        <div className="stack-stage hidden lg:block h-[420px] relative lg:order-1">
+          <div className="stack absolute left-1/2 top-1/2 w-[300px] h-[360px] -ml-[150px] -mt-[180px]">
+            {LAYERS.map(([t, d, g, z, C]) => <div key={t} className={`layer rounded-3xl border border-white/15 bg-gradient-to-br ${g} backdrop-blur-[2px] p-6 flex flex-col justify-between shadow-2xl`} style={{ "--z": z }} data-testid={`report-layer-${z}`}>
+              <C /><LayerTitle t={t} d={d} z={z} /></div>)}
           </div>
+        </div>
+        <div className="lg:hidden order-2 grid sm:grid-cols-2 gap-4" data-testid="report-layers-mobile">
+          {LAYERS.map(([t, d, g, z, C]) => <div key={t} className={`reveal-3d rounded-3xl border border-white/15 bg-gradient-to-br ${g} p-5 flex flex-col gap-4 shadow-2xl`} style={{ transitionDelay: `${z * 80}ms` }} data-testid={`report-layer-mobile-${z}`}>
+            <C /><LayerTitle t={t} d={d} z={z} /></div>)}
         </div>
         <div className="order-1 lg:order-2"><div className="eyebrow mb-3">Inside every report</div><h2 className="text-3xl sm:text-5xl font-bold leading-tight">Four layers of analysis,<br /><span className="text-[#00B4D8]">one clear answer.</span></h2>
           <p className="text-slate-400 mt-4 max-w-md">Scroll to pull the report apart: your clip, the tracked skeleton, the measured numbers and the coaching you actually use.</p></div>
