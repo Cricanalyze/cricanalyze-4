@@ -16,7 +16,7 @@ const fmtIST = (iso) => new Date(iso).toLocaleString("en-IN", { timeZone: "Asia/
 
 const useMaintenance = () => {
   const [m, setM] = useState(null);
-  const load = useCallback(() => api.get("/maintenance").then(({ data }) => setM(data)).catch(() => {}), []);
+  const load = useCallback(() => api.get("/maintenance").then(({ data }) => { setM(data); return data; }).catch(() => setM((x) => x || { active: false })), []);
   useEffect(() => { load(); const t = setInterval(load, 30000); return () => clearInterval(t); }, [load]);
   return [m, load];
 };
@@ -37,7 +37,8 @@ export const MaintenanceGate = ({ children }) => {
   const [m] = useMaintenance();
   const { user, loading } = useAuth();
   const { pathname } = useLocation();
-  if (!m?.active || loading) return children;
+  if (m === null) return <div className="min-h-screen bg-[#070D1E]" />;
+  if (!m.active || loading) return children;
   if (isStaff(user)) return <><div className="fixed bottom-3 left-1/2 -translate-x-1/2 z-[70] rounded-full bg-amber-500 text-[#0B132B] text-xs font-semibold px-4 py-1.5 shadow-lg" data-testid="maintenance-staff-banner">Maintenance mode is ON · only admins can use the site</div>{children}</>;
   if (OPEN_PATHS.some((p) => pathname.startsWith(p))) return children;
   return <MaintenancePage m={m} />;
@@ -46,9 +47,10 @@ export const MaintenanceGate = ({ children }) => {
 export const MaintenanceAdmin = () => {
   const [m, load] = useMaintenance();
   const [f, setF] = useState(null);
-  useEffect(() => { if (m && !f) setF({ enabled: m.enabled, start_at: toIST(m.start_at), end_at: toIST(m.end_at), message: m.message }); }, [m, f]);
+  const fromM = (x) => ({ enabled: x.enabled, start_at: toIST(x.start_at), end_at: toIST(x.end_at), message: x.message });
+  useEffect(() => { if (m && !f) setF(fromM(m)); }, [m, f]);
   if (!f) return "Loading…";
-  const save = async (body) => { try { await api.put("/admin/maintenance", body); toast.success("Maintenance schedule saved."); setF(null); load(); } catch (e) { toast.error(errMsg(e)); } };
+  const save = async (body) => { try { await api.put("/admin/maintenance", body); toast.success("Maintenance schedule saved."); const d = await load(); if (d) setF(fromM(d)); } catch (e) { toast.error(errMsg(e)); } };
   return (<Card className="max-w-2xl space-y-4" data-testid="maintenance-admin">
     <div className="flex justify-between items-center"><h3 className="font-semibold">Scheduled maintenance</h3>
       {m.active ? <Badge tone="amber">Live now</Badge> : m.enabled ? <Badge tone="teal">Scheduled</Badge> : <Badge>Off</Badge>}</div>

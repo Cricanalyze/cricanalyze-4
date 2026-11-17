@@ -96,7 +96,7 @@ const DemoVideo = ({ type, watched, onWatched }) => {
   return <Card data-testid="demo-video-card"><div className="flex items-center justify-between mb-2"><h3 className="font-semibold capitalize">{type} demo</h3>
       {watched ? <Badge tone="teal">Watched</Badge> : <span className="text-xs text-slate-400" data-testid="demo-progress">{pct}% watched</span>}</div>
     <p className="text-sm text-slate-400 mb-3">{DEMOS[type][1]}. {watched ? "You can upload your video below." : "Watch the full demo to unlock the upload."}</p>
-    <video key={type} src={DEMOS[type][0]} controls autoPlay muted playsInline className="w-full rounded-lg bg-black aspect-video" onTimeUpdate={watched ? undefined : onTime} onEnded={onWatched} data-testid="demo-video" />
+    <video key={type} src={DEMOS[type][0]} controls autoPlay muted playsInline className="w-full rounded-lg bg-black aspect-video" onTimeUpdate={watched ? undefined : onTime} onSeeking={watched ? undefined : (e) => { if (e.target.currentTime > maxT.current + 1) e.target.currentTime = maxT.current; }} onRateChange={watched ? undefined : (e) => { e.target.playbackRate = 1; }} onEnded={(e) => { if (watched || maxT.current >= e.target.duration - 0.6) onWatched(); }} data-testid="demo-video" />
     {!watched && <Progress value={pct} className="mt-3" />}</Card>;
 };
 
@@ -117,7 +117,7 @@ export const Upload = () => {
   const [busy, setBusy] = useState(false);
   const [drag, setDrag] = useState(false);
   const key = useRef(crypto.randomUUID());
-  const loadStatus = useCallback(() => api.get("/account/status").then(({ data }) => setStatus(data)), []);
+  const loadStatus = useCallback(() => api.get("/account/status").then(({ data }) => setStatus(data)).catch((e) => toast.error(errMsg(e))), []);
   useEffect(() => { loadStatus(); }, [loadStatus]);
   const staff = isStaff(user);
   const maxVideos = staff ? 3 : ent?.videos_per_analysis || 1;
